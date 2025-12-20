@@ -76,7 +76,11 @@ function Update-FileMetadata { param($fileInfo, $dateStr, $safeBron, $safeTitel)
   
     $parsedDate = $null  
     if ($dateStr -match '^\d{8}$') {  
-        [DateTime]::TryParseExact($dateStr, "yyyyMMdd", [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::None, [ref]$parsedDate) | Out-Null  
+        try {  
+            $parsedDate = [DateTime]::ParseExact($dateStr, "yyyyMMdd", [System.Globalization.CultureInfo]::InvariantCulture)  
+        } catch {  
+            $parsedDate = $null  
+        }  
     }  
   
     if ($parsedDate) {  
@@ -203,7 +207,7 @@ function Start-AutoRename ($startState, $startBounds) {
                 if ($updateMetadata) {  
                     $fileInfo = Get-Item $target  
                     $namePart = [System.IO.Path]::GetFileNameWithoutExtension($fileInfo.Name)  
-                    if ($namePart -match '^(.+)_v\\d+$') { $namePart = $matches[1] }  
+                    if ($namePart -match '^(.+)_v\d+$') { $namePart = $matches[1] }  
                     $parts = $namePart -split "_", 3  
                     $mdDate = if ($parts.Count -gt 0) { $parts[0] -replace '\\D', '' } else { "" }  
                     $mdAuthor = if ($parts.Count -gt 1) { $parts[1] -replace '[\\\\/:*?\"<>|]', '' } else { "" }  
