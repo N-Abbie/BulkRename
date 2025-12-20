@@ -101,10 +101,13 @@ function Start-AutoRename ($startState, $startBounds) {
     $chkMetadata = New-Object System.Windows.Forms.CheckBox
     $chkMetadata.Text = "Ook metadata bijwerken (datum, auteur, titel)"
     $chkMetadata.AutoSize = $true
-    $chkMetadata.Location = New-Object System.Drawing.Point(20, $buttonRowY + 10)
+
+    $totalRowWidth = $chkMetadata.PreferredSize.Width + $buttonSpacing + 180 + $buttonSpacing + 220
+    $rowStartX = [Math]::Max(20, [int](($mainPanel.Width - $totalRowWidth) / 2))
+    $chkMetadata.Location = New-Object System.Drawing.Point($rowStartX, $buttonRowY + [int]((40 - $chkMetadata.PreferredSize.Height) / 2))
     $mainPanel.Controls.Add($chkMetadata)
 
-    $btnUndoX = $chkMetadata.Location.X + $chkMetadata.PreferredSize.Width + $buttonSpacing
+    $btnUndoX = $rowStartX + $chkMetadata.PreferredSize.Width + $buttonSpacing
     $btnUndo = Maak-Knop "Herstel wijzigingen" $btnUndoX $buttonRowY 180 40 "#95a5a6"; $btnUndo.Enabled=$false; $mainPanel.Controls.Add($btnUndo)  
 
     $btnStartX = $btnUndoX + $btnUndo.Width + $buttonSpacing
