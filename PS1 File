@@ -150,8 +150,15 @@ function Start-AutoRename ($startState, $startBounds) {
             if($r.Oud -eq "Oud" -or !$r.Oud){continue}  
             $pOud = Join-Path $script:GekozenMap $r.Oud; $pNieuw = Join-Path $script:GekozenMap $r.Nieuw  
             if(Test-Path $pOud){  
-                $target = $pNieuw; $base=[System.IO.Path]::GetFileNameWithoutExtension($target); $ext=[System.IO.Path]::GetExtension($target); $c=1  
-                while(Test-Path $target){ $c++; $target = Join-Path $script:GekozenMap "$base`_v$c$ext" }  
+                $target = $pNieuw  
+                if ($pOud -eq $target) {  
+                    Log-Kleur $rtbLog "[SKIP] $($r.Oud) ongewijzigd: doelnaam is gelijk aan huidige naam" "Gray"  
+                    continue  
+                }  
+                if (Test-Path $target) {  
+                    Log-Kleur $rtbLog "[SKIP] $($r.Oud) overgeslagen: bestandsnaam bezet ($($r.Nieuw))" "Orange"  
+                    continue  
+                }  
                 Move-Item $pOud $target; $script:UndoLijst += @{Huidig=$target; Orig=$pOud}  
                 Log-Kleur $rtbLog "[OK] $($r.Oud) -> $(Split-Path $target -Leaf)" "Green"  
             } else { Log-Kleur $rtbLog "[MIS] $($r.Oud) niet gevonden" "Red" }  
