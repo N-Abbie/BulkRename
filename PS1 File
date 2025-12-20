@@ -72,7 +72,12 @@ function Get-DetailIndex { param($folder, [string[]]$names)
 }  
   
 function Update-FileMetadata { param($fileInfo, $dateStr, $safeBron, $safeTitel)  
-    if (-not $fileInfo) { return }  
+    if (-not $fileInfo) { return $false }  
+
+    $metadataUpdated = $false
+
+    $safeBron = if ($null -ne $safeBron) { ($safeBron -replace '[\\/:*?"<>|]', '').Trim() } else { "" }
+    $safeTitel = if ($null -ne $safeTitel) { ($safeTitel -replace '[\\/:*?"<>|]', '').Trim() } else { "" }
   
     $parsedDate = $null  
     if ($dateStr -match '^\d{8}$') {  
@@ -88,6 +93,7 @@ function Update-FileMetadata { param($fileInfo, $dateStr, $safeBron, $safeTitel)
             $fileInfo.CreationTime = $parsedDate  
             $fileInfo.LastWriteTime = $parsedDate  
             $fileInfo.LastAccessTime = $parsedDate  
+            $metadataUpdated = $true
         } catch { }  
     }  
   
@@ -97,11 +103,13 @@ function Update-FileMetadata { param($fileInfo, $dateStr, $safeBron, $safeTitel)
         $item = $folder.ParseName($fileInfo.Name)  
         if ($folder -and $item) {  
             $titleIdx = Get-DetailIndex $folder @("Title", "Titel")  
-            if ($titleIdx -ge 0 -and $safeTitel) { $folder.SetDetailsOf($item, $titleIdx, $safeTitel) }  
+            if ($titleIdx -ge 0 -and $safeTitel) { $folder.SetDetailsOf($item, $titleIdx, $safeTitel); $metadataUpdated = $true }  
             $authorIdx = Get-DetailIndex $folder @("Authors", "Author", "Auteurs", "Auteur")  
-            if ($authorIdx -ge 0 -and $safeBron) { $folder.SetDetailsOf($item, $authorIdx, $safeBron) }  
+            if ($authorIdx -ge 0 -and $safeBron) { $folder.SetDetailsOf($item, $authorIdx, $safeBron); $metadataUpdated = $true }  
         }  
     } catch { }  
+
+    return $metadataUpdated
 }  
   
 # ---------------------------------------------------------  
