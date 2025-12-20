@@ -200,6 +200,12 @@ function Start-ManualRename {
     $chkRecurse.Location=New-Object System.Drawing.Point(130,35)  
     $chkRecurse.Size=New-Object System.Drawing.Size(150,20)  
     $grpSel.Controls.Add($chkRecurse)  
+  
+    $chkUpdateMetadata = New-Object System.Windows.Forms.CheckBox  
+    $chkUpdateMetadata.Text="Metadata bijwerken"  
+    $chkUpdateMetadata.Location=New-Object System.Drawing.Point(320,35)  
+    $chkUpdateMetadata.Size=New-Object System.Drawing.Size(180,20)  
+    $grpSel.Controls.Add($chkUpdateMetadata)  
       
     $lblMap = New-Object System.Windows.Forms.Label; $lblMap.Text="Geen map gekozen"; $lblMap.Location=New-Object System.Drawing.Point(20,70); $lblMap.Size=New-Object System.Drawing.Size(550,20)  
     $lblMap.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Left  
@@ -311,6 +317,43 @@ function Start-ManualRename {
     $txtB.Add_KeyDown({ if ($_.KeyCode -eq 'Enter') { $_.SuppressKeyPress = $true; & $script:JumpToNext $txtB } })  
     $txtT.Add_KeyDown({ if ($_.KeyCode -eq 'Enter') { $_.SuppressKeyPress = $true; $btnNext.PerformClick() } })  
   
+    function Get-DetailIndex { param($folder, [string[]]$names)  
+        for ($i = 0; $i -lt 300; $i++) {  
+            $propName = $folder.GetDetailsOf($null, $i)  
+            if ($names | Where-Object { $_.ToLower() -eq $propName.ToLower() }) { return $i }  
+        }  
+        return -1  
+    }  
+  
+    function Update-FileMetadata { param($fileInfo, $dateStr, $safeBron, $safeTitel)  
+        if (-not $chkUpdateMetadata.Checked) { return }  
+  
+        $parsedDate = $null  
+        if ($dateStr -match '^\d{8}$') {  
+            [DateTime]::TryParseExact($dateStr, "yyyyMMdd", [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::None, [ref]$parsedDate) | Out-Null  
+        }  
+  
+        if ($parsedDate) {  
+            try {  
+                $fileInfo.CreationTime = $parsedDate  
+                $fileInfo.LastWriteTime = $parsedDate  
+                $fileInfo.LastAccessTime = $parsedDate  
+            } catch { }  
+        }  
+  
+        try {  
+            $shell = New-Object -ComObject Shell.Application  
+            $folder = $shell.Namespace($fileInfo.DirectoryName)  
+            $item = $folder.ParseName($fileInfo.Name)  
+            if ($folder -and $item) {  
+                $titleIdx = Get-DetailIndex $folder @("Title", "Titel")  
+                if ($titleIdx -ge 0 -and $safeTitel) { $folder.SetDetailsOf($item, $titleIdx, $safeTitel) }  
+                $authorIdx = Get-DetailIndex $folder @("Authors", "Author", "Auteurs", "Auteur")  
+                if ($authorIdx -ge 0 -and $safeBron) { $folder.SetDetailsOf($item, $authorIdx, $safeBron) }  
+            }  
+        } catch { }  
+    }  
+  
     $btnKies.Add_Click({   
         $fb = New-Object System.Windows.Forms.FolderBrowserDialog; if($fb.ShowDialog() -eq "OK"){   
             $script:ManMap=$fb.SelectedPath; $lblMap.Text=$script:ManMap; $btnStartJob.Visible=$true; & $UpdateCount  
@@ -319,6 +362,7 @@ function Start-ManualRename {
     $chkRecurse.Add_CheckedChanged({ & $UpdateCount })  
   
     $btnStartJob.Add_Click({  
+        $script:UpdateMetadata = $chkUpdateMetadata.Checked  
         $script:ManFiles = Get-ChildItem $script:ManMap -File -Recurse:$chkRecurse.Checked | Where-Object {".pdf",".jpg",".png" -contains $_.Extension.ToLower()}  
         $script:ManIdx = 0; $grpEdit.Visible=$true; $btnStartJob.Visible=$false; Laad-Bestand  
     })  
@@ -348,7 +392,10 @@ function Start-ManualRename {
                 try { Move-Item $f.FullName $target -ErrorAction Stop; $success = $true; $script:ManFiles[$script:ManIdx] = Get-Item $target } catch { $retryCount++; Start-Sleep -m 500 }  
             }  
             if (-not $success) { [Windows.Forms.MessageBox]::Show("Kan bestand niet hernoemen (in gebruik?)."); return }  
+            $f = $script:ManFiles[$script:ManIdx]  
         }  
+  
+        if ($script:UpdateMetadata) { Update-FileMetadata $f $dateStr $safeBron $safeTitel }  
         $script:ManIdx++; if($script:ManIdx -lt $script:ManFiles.Count){ Laad-Bestand } else { $formMan.Close() }  
     })  
       
