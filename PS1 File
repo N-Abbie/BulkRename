@@ -63,22 +63,6 @@ function Maak-Knop($tekst, $x, $y, $w, $h, $kleurHex) {
     return $btn  
 }  
   
-function Parse-NameForMetadata { param($path)  
-    $namePart = [System.IO.Path]::GetFileNameWithoutExtension($path)  
-    if ($namePart -match '^(.+)_v\d+$') { $namePart = $matches[1] }  
-  
-    $parts = $namePart -split "_", 3  
-    $dateRaw   = if ($parts.Count -gt 0) { $parts[0] -replace '\D', '' } else { "" }  
-    $authorRaw = if ($parts.Count -gt 1) { $parts[1] } else { "" }  
-    $titleRaw  = if ($parts.Count -gt 2) { $parts[2] } else { "" }  
-  
-    [PSCustomObject]@{  
-        Date   = $dateRaw  
-        Author = $authorRaw -replace '[\\/:*?"<>|]', ''  
-        Title  = $titleRaw -replace '[\\/:*?"<>|]', ''  
-    }  
-}  
-  
 function Get-DetailIndex { param($folder, [string[]]$names)  
     for ($i = 0; $i -lt 300; $i++) {  
         $propName = $folder.GetDetailsOf($null, $i)  
@@ -108,10 +92,10 @@ function Update-FileMetadata { param($fileInfo, $dateStr, $safeBron, $safeTitel)
         $folder = $shell.Namespace($fileInfo.DirectoryName)  
         $item = $folder.ParseName($fileInfo.Name)  
         if ($folder -and $item) {  
-            $titleIdx = Get-DetailIndex $folder @("Title", "Titel", "Onderwerp")  
-            if ($titleIdx -ge 0 -and $safeTitel) { $folder.SetDetailsOf($item, $titleIdx, [string]$safeTitel) }  
-            $authorIdx = Get-DetailIndex $folder @("Authors", "Author", "Auteurs", "Auteur", "Schrijver")  
-            if ($authorIdx -ge 0 -and $safeBron) { $folder.SetDetailsOf($item, $authorIdx, [string]$safeBron) }  
+            $titleIdx = Get-DetailIndex $folder @("Title", "Titel")  
+            if ($titleIdx -ge 0 -and $safeTitel) { $folder.SetDetailsOf($item, $titleIdx, $safeTitel) }  
+            $authorIdx = Get-DetailIndex $folder @("Authors", "Author", "Auteurs", "Auteur")  
+            if ($authorIdx -ge 0 -and $safeBron) { $folder.SetDetailsOf($item, $authorIdx, $safeBron) }  
         }  
     } catch { }  
 }  
@@ -218,8 +202,13 @@ function Start-AutoRename ($startState, $startBounds) {
   
                 if ($updateMetadata) {  
                     $fileInfo = Get-Item $target  
-                    $meta = Parse-NameForMetadata $fileInfo.FullName  
-                    Update-FileMetadata $fileInfo $meta.Date $meta.Author $meta.Title  
+                    $namePart = [System.IO.Path]::GetFileNameWithoutExtension($fileInfo.Name)  
+                    if ($namePart -match '^(.+)_v\\d+$') { $namePart = $matches[1] }  
+                    $parts = $namePart -split "_", 3  
+                    $mdDate = if ($parts.Count -gt 0) { $parts[0] -replace '\\D', '' } else { "" }  
+                    $mdAuthor = if ($parts.Count -gt 1) { $parts[1] -replace '[\\\\/:*?\"<>|]', '' } else { "" }  
+                    $mdTitle = if ($parts.Count -gt 2) { $parts[2] -replace '[\\\\/:*?\"<>|]', '' } else { "" }  
+                    Update-FileMetadata $fileInfo $mdDate $mdAuthor $mdTitle  
                 }  
   
                 Log-Kleur $rtbLog "[OK] $($r.Oud) -> $(Split-Path $target -Leaf)" "Green"  
