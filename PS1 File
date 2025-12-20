@@ -94,9 +94,22 @@ function Start-AutoRename ($startState, $startBounds) {
     $btnLijst = Maak-Knop "Kies bestand" 20 30 150 30 "#bdc3c7"; $grpStap2.Controls.Add($btnLijst)  
     $btnPlak = Maak-Knop "Plak Klembord" 180 30 150 30 "#f1c40f"; $grpStap2.Controls.Add($btnPlak)  
     $lblLijst = New-Object System.Windows.Forms.Label; $lblLijst.Text = "Geen lijst"; $lblLijst.Location = New-Object System.Drawing.Point(340, 35); $lblLijst.Size = New-Object System.Drawing.Size(400, 20); $grpStap2.Controls.Add($lblLijst)  
-  
-    $btnStart = Maak-Knop "Start Hernoemen" 560 320 220 40 "#27ae60"; $mainPanel.Controls.Add($btnStart)  
-    $btnUndo = Maak-Knop "Herstel wijzigingen" 350 320 180 40 "#95a5a6"; $btnUndo.Enabled=$false; $mainPanel.Controls.Add($btnUndo)  
+
+    $buttonRowY = 320
+    $buttonSpacing = 20
+
+    $chkMetadata = New-Object System.Windows.Forms.CheckBox
+    $chkMetadata.Text = "Ook metadata bijwerken (datum, auteur, titel)"
+    $chkMetadata.AutoSize = $true
+    $chkMetadata.Location = New-Object System.Drawing.Point(20, $buttonRowY + 10)
+    $mainPanel.Controls.Add($chkMetadata)
+
+    $btnUndoX = $chkMetadata.Location.X + $chkMetadata.PreferredSize.Width + $buttonSpacing
+    $btnUndo = Maak-Knop "Herstel wijzigingen" $btnUndoX $buttonRowY 180 40 "#95a5a6"; $btnUndo.Enabled=$false; $mainPanel.Controls.Add($btnUndo)  
+
+    $btnStartX = $btnUndoX + $btnUndo.Width + $buttonSpacing
+    $btnStart = Maak-Knop "Start Hernoemen" $btnStartX $buttonRowY 220 40 "#27ae60"; $mainPanel.Controls.Add($btnStart)  
+
     $rtbLog = New-Object System.Windows.Forms.RichTextBox; $rtbLog.Location=New-Object System.Drawing.Point(20,380); $rtbLog.Size=New-Object System.Drawing.Size(760,190); $rtbLog.ReadOnly=$true; $mainPanel.Controls.Add($rtbLog)  
   
     $btnLijst.Add_Click({  
