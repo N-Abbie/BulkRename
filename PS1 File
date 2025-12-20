@@ -55,6 +55,66 @@ function Maak-Knop($tekst, $x, $y, $w, $h, $kleurHex) {
     return $btn  
 }  
   
+$script:MetadataIndexCache = @{}  
+function Zoek-PropertyIndex ($folder, [string[]]$labels) {  
+    if (-not $folder) { return $null }  
+    foreach ($label in $labels) {  
+        $cacheKey = "$($folder.Self.Path)|$label"  
+        if ($script:MetadataIndexCache.ContainsKey($cacheKey)) {  
+            $idx = $script:MetadataIndexCache[$cacheKey]  
+            if ($idx -ne $null) { return $idx } else { continue }  
+        }  
+        for ($i = 0; $i -lt 300; $i++) {  
+            $naam = $folder.GetDetailsOf($null, $i)  
+            if (-not [string]::IsNullOrWhiteSpace($naam) -and $naam.Trim().Equals($label, [System.StringComparison]::InvariantCultureIgnoreCase)) {  
+                $script:MetadataIndexCache[$cacheKey] = $i  
+                return $i  
+            }  
+        }  
+        $script:MetadataIndexCache[$cacheKey] = $null  
+    }  
+    return $null  
+}  
+  
+function Set-BestandMetadata ($pad, [Nullable[datetime]]$datum, [string]$bron, [string]$titel) {  
+    if (-not (Test-Path $pad)) { return }  
+    if ($datum) {  
+        [System.IO.File]::SetCreationTime($pad, $datum)  
+        [System.IO.File]::SetLastWriteTime($pad, $datum)  
+        [System.IO.File]::SetLastAccessTime($pad, $datum)  
+    }  
+    try {  
+        $shell = New-Object -ComObject Shell.Application  
+        $folder = $shell.Namespace((Split-Path $pad))  
+        $file = $folder.ParseName([System.IO.Path]::GetFileName($pad))  
+        if ($folder -and $file) {  
+            $authorIdx = Zoek-PropertyIndex $folder @("Authors", "Auteur", "Auteurs")  
+            $titleIdx  = Zoek-PropertyIndex $folder @("Title", "Titel")  
+            $dateIdx   = Zoek-PropertyIndex $folder @("Date created", "Gemaakt op", "Aangemaakt", "Date taken", "Opnamedatum", "Datum")  
+            if ($authorIdx -ne $null -and $bron) { $folder.SetDetailsOf($file, $authorIdx, $bron) }  
+            if ($titleIdx  -ne $null -and $titel) { $folder.SetDetailsOf($file, $titleIdx,  $titel) }  
+            if ($dateIdx   -ne $null -and $datum) { $folder.SetDetailsOf($file, $dateIdx,   $datum.ToString("dd-MM-yyyy")) }  
+        }  
+    } catch { }  
+}  
+  
+function Parse-NaamMetadata ($naam) {  
+    $base = [System.IO.Path]::GetFileNameWithoutExtension($naam)  
+    $delen = $base.Split("_", 3)  
+    if ($delen.Count -lt 3) { return $null }  
+    if ($delen[0] -notmatch '^\d{8}$') { return $null }  
+    try {  
+        $dt = [datetime]::ParseExact($delen[0], "yyyyMMdd", $null)  
+    } catch {  
+        return $null  
+    }  
+    return [pscustomobject]@{  
+        Datum = $dt  
+        Bron  = ($delen[1] -replace "_", " ").Trim()  
+        Titel = ($delen[2] -replace "_", " ").Trim()  
+    }  
+}  
+  
 # ---------------------------------------------------------  
 # TOOL 1: BATCH RENAMER  
 # ---------------------------------------------------------  
@@ -95,6 +155,7 @@ function Start-AutoRename ($startState, $startBounds) {
     $btnPlak = Maak-Knop "Plak Klembord" 180 30 150 30 "#f1c40f"; $grpStap2.Controls.Add($btnPlak)  
     $lblLijst = New-Object System.Windows.Forms.Label; $lblLijst.Text = "Geen lijst"; $lblLijst.Location = New-Object System.Drawing.Point(340, 35); $lblLijst.Size = New-Object System.Drawing.Size(400, 20); $grpStap2.Controls.Add($lblLijst)  
   
+    $chkMetaBatch = New-Object System.Windows.Forms.CheckBox; $chkMetaBatch.Text = "Ook metadata bijwerken (datum, auteur, titel)"; $chkMetaBatch.Location = New-Object System.Drawing.Point(20, 320); $chkMetaBatch.Size = New-Object System.Drawing.Size(400, 25); $mainPanel.Controls.Add($chkMetaBatch)  
     $btnStart = Maak-Knop "Start Hernoemen" 560 320 220 40 "#27ae60"; $mainPanel.Controls.Add($btnStart)  
     $btnUndo = Maak-Knop "Herstel wijzigingen" 350 320 180 40 "#95a5a6"; $btnUndo.Enabled=$false; $mainPanel.Controls.Add($btnUndo)  
     $rtbLog = New-Object System.Windows.Forms.RichTextBox; $rtbLog.Location=New-Object System.Drawing.Point(20,380); $rtbLog.Size=New-Object System.Drawing.Size(760,190); $rtbLog.ReadOnly=$true; $mainPanel.Controls.Add($rtbLog)  
@@ -137,6 +198,15 @@ function Start-AutoRename ($startState, $startBounds) {
                 while(Test-Path $target){ $c++; $target = Join-Path $script:GekozenMap "$base`_v$c$ext" }  
                 Move-Item $pOud $target; $script:UndoLijst += @{Huidig=$target; Orig=$pOud}  
                 Log-Kleur $rtbLog "[OK] $($r.Oud) -> $(Split-Path $target -Leaf)" "Green"  
+                if ($chkMetaBatch.Checked) {  
+                    $meta = Parse-NaamMetadata -naam (Split-Path $target -Leaf)  
+                    if ($meta) {  
+                        Set-BestandMetadata -pad $target -datum $meta.Datum -bron $meta.Bron -titel $meta.Titel  
+                        Log-Kleur $rtbLog "    Metadata bijgewerkt." "Gray"  
+                    } else {  
+                        Log-Kleur $rtbLog "    Metadata overslagen (kon niet worden gelezen uit naam)." "Gray"  
+                    }  
+                }  
             } else { Log-Kleur $rtbLog "[MIS] $($r.Oud) niet gevonden" "Red" }  
         }  
         $btnUndo.Enabled = $true; $btnUndo.BackColor = [System.Drawing.ColorTranslator]::FromHtml("#e74c3c"); $btnUndo.ForeColor = "White"  
@@ -248,6 +318,7 @@ function Start-ManualRename {
     $lblLivePreview.Font=New-Object System.Drawing.Font("Segoe UI", 11, [System.Drawing.FontStyle]::Italic)  
     $lblLivePreview.Name="lblLivePreview"  
     $grpEdit.Controls.Add($lblLivePreview)  
+    $chkMetaManual = New-Object System.Windows.Forms.CheckBox; $chkMetaManual.Text="Ook metadata bijwerken (datum, auteur, titel)"; $chkMetaManual.Location=New-Object System.Drawing.Point(20,410); $chkMetaManual.Size=New-Object System.Drawing.Size(400,25); $grpEdit.Controls.Add($chkMetaManual)  
   
     # KNOPPEN  
     $btnBack = Maak-Knop "Vorig" 20 440 100 45 "#e74c3c"; $grpEdit.Controls.Add($btnBack)  
@@ -335,6 +406,13 @@ function Start-ManualRename {
                 try { Move-Item $f.FullName $target -ErrorAction Stop; $success = $true; $script:ManFiles[$script:ManIdx] = Get-Item $target } catch { $retryCount++; Start-Sleep -m 500 }  
             }  
             if (-not $success) { [Windows.Forms.MessageBox]::Show("Kan bestand niet hernoemen (in gebruik?)."); return }  
+        }  
+        if ($chkMetaManual.Checked) {  
+            $metaDate = $null  
+            if ($raw.Length -eq 8) {  
+                try { $metaDate = [datetime]::ParseExact($dateStr, "yyyyMMdd", $null) } catch { $metaDate = $null }  
+            }  
+            Set-BestandMetadata -pad $target -datum $metaDate -bron $safeBron.Trim() -titel $safeTitel.Trim()  
         }  
         $script:ManIdx++; if($script:ManIdx -lt $script:ManFiles.Count){ Laad-Bestand } else { $formMan.Close() }  
     })  
