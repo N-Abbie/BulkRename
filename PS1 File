@@ -1,0 +1,412 @@
+Add-Type -AssemblyName System.Windows.Forms  
+Add-Type -AssemblyName System.Drawing  
+Add-Type -AssemblyName Microsoft.VisualBasic  
+  
+# ---------------------------------------------------------  
+# GLOBALE SETTINGS (Alleen Light Mode)  
+# ---------------------------------------------------------  
+$script:Theme = "Light"  
+$script:GaTerugNaarMenu = $false   
+  
+# Functie om thema (Light) toe te passen  
+function Update-FormsTheme ($form) {  
+    if ($null -eq $form) { return }  
+      
+    $bg      = [System.Drawing.ColorTranslator]::FromHtml("#F0F2F5")  
+    $fg      = [System.Drawing.Color]::Black  
+    $boxBg   = [System.Drawing.Color]::White  
+    $boxFg   = [System.Drawing.Color]::Black  
+    $subTxt  = [System.Drawing.Color]::DimGray   
+      
+    $form.BackColor = $bg  
+      
+    $allControls = $form.Controls.Find("*", $true)  
+    foreach ($ctrl in $allControls) {  
+        if ($ctrl -is [System.Windows.Forms.Label] -or $ctrl -is [System.Windows.Forms.CheckBox] -or $ctrl -is [System.Windows.Forms.GroupBox]) {  
+            if ($ctrl.Name -like "lblSub*" -or $ctrl.Name -eq "lblCount") {  
+                $ctrl.ForeColor = $subTxt  
+            } elseif ($ctrl.Name -eq "lblLivePreview") {  
+                $ctrl.ForeColor = [System.Drawing.ColorTranslator]::FromHtml("#2980b9")   
+            } else {  
+                $ctrl.ForeColor = $fg  
+            }  
+        }  
+        if ($ctrl -is [System.Windows.Forms.TextBox] -or $ctrl -is [System.Windows.Forms.MaskedTextBox] -or $ctrl -is [System.Windows.Forms.RichTextBox]) {  
+            $ctrl.BackColor = $boxBg; $ctrl.ForeColor = $boxFg  
+        }  
+        if ($ctrl -is [System.Windows.Forms.Panel] -or $ctrl -is [System.Windows.Forms.SplitContainer]) {  
+             if ($ctrl.Name -ne "pnlInstr") { $ctrl.BackColor = $bg }  
+        }  
+    }  
+    $form.Refresh()  
+}  
+  
+function Maak-Knop($tekst, $x, $y, $w, $h, $kleurHex) {  
+    $btn = New-Object System.Windows.Forms.Button  
+    $btn.Text = $tekst  
+    $btn.Location = New-Object System.Drawing.Point($x, $y)  
+    $btn.Size = New-Object System.Drawing.Size($w, $h)  
+    $btn.BackColor = [System.Drawing.ColorTranslator]::FromHtml($kleurHex)  
+    $btn.FlatStyle = "Flat"; $btn.FlatAppearance.BorderSize = 0  
+    $btn.Font = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)  
+      
+    if ($kleurHex -match "#(f|e|d)" -and $kleurHex -ne "#e74c3c") { $btn.ForeColor = "Black" } else { $btn.ForeColor = "White" }  
+    $btn.Cursor = "Hand"  
+    return $btn  
+}  
+  
+# ---------------------------------------------------------  
+# TOOL 1: BATCH RENAMER  
+# ---------------------------------------------------------  
+function Start-AutoRename ($startState, $startBounds) {  
+    $script:GaTerugNaarMenu = $false  
+    $formAuto = New-Object System.Windows.Forms.Form  
+    $formAuto.Text = "Rename Tool - Batch Renamer"  
+    $formAuto.WindowState = "Maximized"  
+  
+    $script:GekozenMap = $null; $script:IngeplakteTekst = $null; $script:UndoLijst = @()  
+      
+    $mainPanel = New-Object System.Windows.Forms.Panel; $mainPanel.Size = New-Object System.Drawing.Size(800, 650); $formAuto.Controls.Add($mainPanel)  
+    $formAuto.Add_Resize({   
+        $x = [int](($formAuto.ClientSize.Width - $mainPanel.Width) / 2)  
+        $mainPanel.Location = New-Object System.Drawing.Point($x, 0)  
+    })  
+  
+    $btnHome = Maak-Knop "<- Terug" 10 10 100 30 "#7f8c8d"; $mainPanel.Controls.Add($btnHome)  
+    $btnHome.Add_Click({ $script:GaTerugNaarMenu = $true; $formAuto.Close() })  
+  
+    $btnHelp = Maak-Knop "?" 760 10 30 30 "#95a5a6"; $mainPanel.Controls.Add($btnHelp)  
+    $pnlInstr = New-Object System.Windows.Forms.Panel; $pnlInstr.Name="pnlInstr"; $pnlInstr.Size=New-Object System.Drawing.Size(760,480); $pnlInstr.Location=New-Object System.Drawing.Point(20,80); $pnlInstr.BackColor="#FFFBE6"; $pnlInstr.Visible=$false; $pnlInstr.BorderStyle="FixedSingle"; $mainPanel.Controls.Add($pnlInstr)  
+    $rtbI = New-Object System.Windows.Forms.RichTextBox; $rtbI.Location=New-Object System.Drawing.Point(20,50); $rtbI.Size=New-Object System.Drawing.Size(720,410); $rtbI.BackColor="#FFFBE6"; $rtbI.ForeColor="Black"; $rtbI.BorderStyle="None"; $pnlInstr.Controls.Add($rtbI)  
+    $btnHelp.Add_Click({ $pnlInstr.Visible = -not $pnlInstr.Visible; $pnlInstr.BringToFront() })  
+  
+    $lblTitel = New-Object System.Windows.Forms.Label; $lblTitel.Text = "Batch Renamer"  
+    $lblTitel.Font = New-Object System.Drawing.Font("Segoe UI", 18, [System.Drawing.FontStyle]::Bold)  
+    $lblTitel.Location = New-Object System.Drawing.Point(0, 50); $lblTitel.Size = New-Object System.Drawing.Size(800, 40); $lblTitel.TextAlign = "MiddleCenter"; $mainPanel.Controls.Add($lblTitel)  
+  
+    $grpStap1 = New-Object System.Windows.Forms.GroupBox; $grpStap1.Text = "Stap 1: Map"; $grpStap1.Location = New-Object System.Drawing.Point(20, 110); $grpStap1.Size = New-Object System.Drawing.Size(760, 100); $mainPanel.Controls.Add($grpStap1)  
+    $btnMap = Maak-Knop "Kies map..." 20 30 150 30 "#bdc3c7"; $grpStap1.Controls.Add($btnMap)  
+    $chkRecurse = New-Object System.Windows.Forms.CheckBox; $chkRecurse.Text = "Inclusief submappen"; $chkRecurse.Location = New-Object System.Drawing.Point(20, 70); $chkRecurse.Size = New-Object System.Drawing.Size(200, 20); $grpStap1.Controls.Add($chkRecurse)  
+    $lblMap = New-Object System.Windows.Forms.Label; $lblMap.Text = "Selecteer de map met te wijzigen documenten (of sleep map hierheen)"; $lblMap.Location = New-Object System.Drawing.Point(180, 35); $lblMap.Size = New-Object System.Drawing.Size(550, 40); $grpStap1.Controls.Add($lblMap)  
+    $btnMap.Add_Click({ $fb = New-Object System.Windows.Forms.FolderBrowserDialog; if ($fb.ShowDialog() -eq "OK") { $script:GekozenMap = $fb.SelectedPath; $lblMap.Text = $script:GekozenMap } })  
+  
+    $grpStap2 = New-Object System.Windows.Forms.GroupBox; $grpStap2.Text = "Stap 2: Lijst (Excel/CSV/Klembord)"; $grpStap2.Location = New-Object System.Drawing.Point(20, 220); $grpStap2.Size = New-Object System.Drawing.Size(760, 80); $mainPanel.Controls.Add($grpStap2)  
+    $btnLijst = Maak-Knop "Kies bestand" 20 30 150 30 "#bdc3c7"; $grpStap2.Controls.Add($btnLijst)  
+    $btnPlak = Maak-Knop "Plak Klembord" 180 30 150 30 "#f1c40f"; $grpStap2.Controls.Add($btnPlak)  
+    $lblLijst = New-Object System.Windows.Forms.Label; $lblLijst.Text = "Geen lijst"; $lblLijst.Location = New-Object System.Drawing.Point(340, 35); $lblLijst.Size = New-Object System.Drawing.Size(400, 20); $grpStap2.Controls.Add($lblLijst)  
+  
+    $btnStart = Maak-Knop "Start Hernoemen" 560 320 220 40 "#27ae60"; $mainPanel.Controls.Add($btnStart)  
+    $btnUndo = Maak-Knop "Herstel wijzigingen" 350 320 180 40 "#95a5a6"; $btnUndo.Enabled=$false; $mainPanel.Controls.Add($btnUndo)  
+    $rtbLog = New-Object System.Windows.Forms.RichTextBox; $rtbLog.Location=New-Object System.Drawing.Point(20,380); $rtbLog.Size=New-Object System.Drawing.Size(760,190); $rtbLog.ReadOnly=$true; $mainPanel.Controls.Add($rtbLog)  
+  
+    $btnLijst.Add_Click({  
+        $of = New-Object System.Windows.Forms.OpenFileDialog; $of.Filter = "Lijsten|*.csv;*.txt;*.xlsx|Alle|*.*"  
+        if ($of.ShowDialog() -eq "OK") {  
+            $btnStart.Enabled = $false; $btnStart.BackColor = [System.Drawing.Color]::Gray  
+            $lblLijst.Text = "Analyseren..."; $formAuto.Refresh()  
+            if ($of.FileName -match "\.xlsx$") {  
+                try {  
+                    Add-Type -AssemblyName Microsoft.Office.Interop.Excel  
+                    $excel = New-Object -ComObject Excel.Application; $wb = $excel.Workbooks.Open($of.FileName)  
+                    $ws = $wb.Sheets.Item(1); $res = "Oud;Nieuw`r`n"  
+                    for($r=1;$r -le 100;$r++){ $o=$ws.Cells.Item($r,1).Text; $n=$ws.Cells.Item($r,2).Text; if($o -and $n){$res+="$o;$n`r`n"} }  
+                    $wb.Close($false); $excel.Quit(); $script:IngeplakteTekst = $res  
+                } catch { [Windows.Forms.MessageBox]::Show("Excel fout: $_") }  
+            } else { $script:IngeplakteTekst = Get-Content $of.FileName -Raw }  
+            $lblLijst.Text = "Bestand geladen!"; $lblLijst.ForeColor = [System.Drawing.Color]::Green  
+            $btnStart.Enabled = $true; $btnStart.BackColor = [System.Drawing.ColorTranslator]::FromHtml("#27ae60")  
+        }  
+    })  
+  
+    $btnPlak.Add_Click({  
+        $script:IngeplakteTekst = [Windows.Forms.Clipboard]::GetText(); if ($script:IngeplakteTekst -match ";") { $lblLijst.Text = "Klembord data geladen"; $lblLijst.ForeColor = [System.Drawing.Color]::Green } else { [Windows.Forms.MessageBox]::Show("Fout: Geen geldige lijst gevonden.") }  
+    })  
+  
+    function Log-Kleur ($rtb, $tekst, $kleur) {  
+        $rtb.SelectionStart = $rtb.TextLength; $rtb.SelectionLength = 0; $rtb.SelectionColor = [System.Drawing.Color]::FromName($kleur); $rtb.AppendText($tekst + "`r`n"); $rtb.ScrollToCaret()  
+    }  
+  
+    $btnStart.Add_Click({  
+        if(-not $script:GekozenMap){ [Windows.Forms.MessageBox]::Show("Kies map!"); return }  
+        $rtbLog.Text = ""; $lijst = $script:IngeplakteTekst | ConvertFrom-Csv -Delimiter ";" -Header "Oud","Nieuw"  
+        foreach($r in $lijst){  
+            if($r.Oud -eq "Oud" -or !$r.Oud){continue}  
+            $pOud = Join-Path $script:GekozenMap $r.Oud; $pNieuw = Join-Path $script:GekozenMap $r.Nieuw  
+            if(Test-Path $pOud){  
+                $target = $pNieuw; $base=[System.IO.Path]::GetFileNameWithoutExtension($target); $ext=[System.IO.Path]::GetExtension($target); $c=1  
+                while(Test-Path $target){ $c++; $target = Join-Path $script:GekozenMap "$base`_v$c$ext" }  
+                Move-Item $pOud $target; $script:UndoLijst += @{Huidig=$target; Orig=$pOud}  
+                Log-Kleur $rtbLog "[OK] $($r.Oud) -> $(Split-Path $target -Leaf)" "Green"  
+            } else { Log-Kleur $rtbLog "[MIS] $($r.Oud) niet gevonden" "Red" }  
+        }  
+        $btnUndo.Enabled = $true; $btnUndo.BackColor = [System.Drawing.ColorTranslator]::FromHtml("#e74c3c"); $btnUndo.ForeColor = "White"  
+    })  
+  
+    $btnUndo.Add_Click({ foreach($i in $script:UndoLijst){ if(Test-Path $i.Huidig){ Move-Item $i.Huidig $i.Orig } }; $script:UndoLijst = @(); $btnUndo.Enabled = $false; $rtbLog.AppendText("`r`nHerstel voltooid.") })  
+  
+    Update-FormsTheme $formAuto; $formAuto.ShowDialog() | Out-Null  
+}  
+  
+# ---------------------------------------------------------  
+# TOOL 2: INTERACTIVE RENAMER  
+# ---------------------------------------------------------  
+function Start-ManualRename {  
+    $script:GaTerugNaarMenu = $false  
+    $formMan = New-Object System.Windows.Forms.Form  
+    $formMan.Text = "Rename Tool - Interactive Renamer"  
+    $formMan.WindowState = "Maximized"  
+    $formMan.KeyPreview = $true   
+  
+    $split = New-Object System.Windows.Forms.SplitContainer;   
+    $split.Dock = "Fill"  
+    $split.FixedPanel = "None"  
+      
+    $formMan.Controls.Add($split)  
+      
+    $formMan.Add_Load({  
+        $split.SplitterDistance = [int]($formMan.Width / 2)  
+    })  
+  
+    $pnlCtrl = $split.Panel1  
+    $pnlCtrl.Padding = New-Object System.Windows.Forms.Padding(20, 20, 100, 20)   
+    $pnlView = $split.Panel2  
+      
+    $btnHome = Maak-Knop "<- Terug" 10 10 100 30 "#7f8c8d"; $pnlCtrl.Controls.Add($btnHome)  
+    $btnHome.Add_Click({ $script:GaTerugNaarMenu = $true; $formMan.Close() })  
+  
+    # -- KIES MAP SECTIE --  
+    $grpSel = New-Object System.Windows.Forms.GroupBox; $grpSel.Text="1. Kies Map"  
+    $grpSel.Location=New-Object System.Drawing.Point(20,60); $grpSel.Size=New-Object System.Drawing.Size(600,140)   
+    $grpSel.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Left  
+    $pnlCtrl.Controls.Add($grpSel)  
+  
+    $btnKies = Maak-Knop "Kies Map" 20 30 100 30 "#bdc3c7"; $grpSel.Controls.Add($btnKies)  
+      
+    $chkRecurse = New-Object System.Windows.Forms.CheckBox  
+    $chkRecurse.Text="Inclusief submappen"   
+    $chkRecurse.Location=New-Object System.Drawing.Point(130,35)  
+    $chkRecurse.Size=New-Object System.Drawing.Size(150,20)  
+    $grpSel.Controls.Add($chkRecurse)  
+      
+    $lblMap = New-Object System.Windows.Forms.Label; $lblMap.Text="Geen map gekozen"; $lblMap.Location=New-Object System.Drawing.Point(20,70); $lblMap.Size=New-Object System.Drawing.Size(550,20)  
+    $lblMap.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Left  
+    $grpSel.Controls.Add($lblMap)  
+  
+    $lblCount = New-Object System.Windows.Forms.Label; $lblCount.Text=""; $lblCount.Location=New-Object System.Drawing.Point(20,100); $lblCount.Size=New-Object System.Drawing.Size(550,20)  
+    $lblCount.Name="lblCount"  
+    $lblCount.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Left  
+    $grpSel.Controls.Add($lblCount)  
+  
+    $btnStartJob = Maak-Knop "Start hernoemen" 20 210 600 40 "#27ae60"  
+    $btnStartJob.Visible=$false  
+    $btnStartJob.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Left  
+    $pnlCtrl.Controls.Add($btnStartJob)  
+  
+    # -- EDITOR SECTIE --  
+    $grpEdit = New-Object System.Windows.Forms.GroupBox; $grpEdit.Text="2. Bestand Bewerken"  
+    $grpEdit.Location=New-Object System.Drawing.Point(20,260); $grpEdit.Size=New-Object System.Drawing.Size(600,570); $grpEdit.Visible=$false  
+    $grpEdit.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Left -bor [System.Windows.Forms.AnchorStyles]::Bottom  
+    $pnlCtrl.Controls.Add($grpEdit)  
+  
+    $lblFile = New-Object System.Windows.Forms.Label; $lblFile.Location=New-Object System.Drawing.Point(20,30); $lblFile.Size=New-Object System.Drawing.Size(550,40)  
+    $lblFile.Font = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)  
+    $grpEdit.Controls.Add($lblFile)  
+      
+    function Maak-InputLabels ($grp, $y, $titel, $sub) {  
+        $yPos = [int]$y  
+        $ySub = [int]($yPos + 25)  
+  
+        $lT = New-Object System.Windows.Forms.Label; $lT.Text=$titel; $lT.Location=New-Object System.Drawing.Point(20, $yPos)  
+        $lT.Font = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold); $lT.Size=New-Object System.Drawing.Size(400,20)  
+          
+        $lS = New-Object System.Windows.Forms.Label; $lS.Text=$sub; $lS.Location=New-Object System.Drawing.Point(20, $ySub);   
+        $lS.Size=New-Object System.Drawing.Size(550,20); $lS.Name="lblSub"  
+          
+        $grp.Controls.Add($lT); $grp.Controls.Add($lS)  
+    }  
+  
+    # 1. DATUM  
+    Maak-InputLabels $grpEdit 80 "Datum" "Druk op 't' voor vandaag. DD-MM-YYYY"  
+    $txtD = New-Object System.Windows.Forms.MaskedTextBox; $txtD.Mask="00-00-0000"; $txtD.Location=New-Object System.Drawing.Point(20,135); $txtD.Size=New-Object System.Drawing.Size(550,25)  
+    $grpEdit.Controls.Add($txtD)  
+      
+    # 2. BRON  
+    Maak-InputLabels $grpEdit 175 "Bron" "Auteur (persoon of instituut)"  
+    $txtB = New-Object System.Windows.Forms.TextBox; $txtB.Location=New-Object System.Drawing.Point(20,230); $txtB.Size=New-Object System.Drawing.Size(550,25)  
+    $grpEdit.Controls.Add($txtB)  
+      
+    # 3. TITEL  
+    Maak-InputLabels $grpEdit 270 "Titel" "Beschrijving of titel van het document"  
+    $txtT = New-Object System.Windows.Forms.TextBox; $txtT.Location=New-Object System.Drawing.Point(20,325); $txtT.Size=New-Object System.Drawing.Size(550,25)  
+    $grpEdit.Controls.Add($txtT)  
+  
+    # Live Preview Label  
+    $lblLivePreview = New-Object System.Windows.Forms.Label;   
+    $lblLivePreview.Text="Preview: ...";   
+    $lblLivePreview.Location=New-Object System.Drawing.Point(20,380);   
+    $lblLivePreview.Size=New-Object System.Drawing.Size(550,30);   
+    $lblLivePreview.Font=New-Object System.Drawing.Font("Segoe UI", 11, [System.Drawing.FontStyle]::Italic)  
+    $lblLivePreview.Name="lblLivePreview"  
+    $grpEdit.Controls.Add($lblLivePreview)  
+  
+    # KNOPPEN  
+    $btnBack = Maak-Knop "Vorig" 20 440 100 45 "#e74c3c"; $grpEdit.Controls.Add($btnBack)  
+    $btnSkip = Maak-Knop "Overslaan" 130 440 100 45 "#95a5a6"; $grpEdit.Controls.Add($btnSkip)  
+    $btnNext = Maak-Knop "Hernoem en Volgende >" 240 440 250 45 "#27ae60";   
+    $grpEdit.Controls.Add($btnNext)  
+  
+    $pdf = New-Object System.Windows.Forms.WebBrowser; $pdf.Dock="Fill"; $pnlView.Controls.Add($pdf)  
+    $img = New-Object System.Windows.Forms.PictureBox; $img.Dock="Fill"; $img.SizeMode="Zoom"; $pnlView.Controls.Add($img)  
+  
+    $formMan.Add_FormClosed({ if ($pdf -ne $null) { $pdf.Dispose() } })  
+  
+    # -- LIVE PREVIEW LOGICA --  
+    $UpdatePreview = {  
+        $raw = $txtD.Text -replace "\D", ""  
+        if ($raw.Length -eq 0) {  
+            $dStr = "Datum"  
+        } else {  
+            $pad = $raw.PadRight(8, "0")  
+            $dd   = $pad.Substring(0, 2); $mm = $pad.Substring(2, 2); $yyyy = $pad.Substring(4, 4)  
+            $dStr = "$yyyy$mm$dd"  
+        }  
+        $sBron = $txtB.Text -replace '[\\/:*?"<>|]', ''  
+        $sTitel = $txtT.Text -replace '[\\/:*?"<>|]', ''  
+        if ($sBron -eq "") { $sBron = "Bron" }  
+        if ($sTitel -eq "") { $sTitel = "Titel" }  
+        $ext = if ($script:ManFiles -and $script:ManFiles[$script:ManIdx]) { $script:ManFiles[$script:ManIdx].Extension } else { ".pdf" }  
+        $lblLivePreview.Text = "Preview: ${dStr}_${sBron}_${sTitel}${ext}"  
+    }  
+  
+    $script:JumpToNext = { param($sender)  
+        $formMan.SelectNextControl($sender, $true, $true, $true, $true)   
+    }  
+      
+    $UpdateCount = {  
+        if ($script:ManMap -and (Test-Path $script:ManMap)) {  
+            $c = (Get-ChildItem $script:ManMap -File -Recurse:$chkRecurse.Checked | Where-Object {".pdf",".jpg",".png" -contains $_.Extension.ToLower()}).Count  
+            $lblCount.Text = "$c bestanden gevonden."  
+        }  
+    }  
+  
+    $txtD.Add_TextChanged($UpdatePreview); $txtB.Add_TextChanged($UpdatePreview); $txtT.Add_TextChanged($UpdatePreview)  
+  
+    $txtD.Add_KeyDown({  
+        if ($_.KeyCode -eq 'T') { $txtD.Text = (Get-Date).ToString("dd-MM-yyyy"); $_.SuppressKeyPress = $true }  
+        if ($_.KeyCode -eq 'Enter') { $_.SuppressKeyPress = $true; & $script:JumpToNext $txtD }  
+    })  
+    $txtB.Add_KeyDown({ if ($_.KeyCode -eq 'Enter') { $_.SuppressKeyPress = $true; & $script:JumpToNext $txtB } })  
+    $txtT.Add_KeyDown({ if ($_.KeyCode -eq 'Enter') { $_.SuppressKeyPress = $true; $btnNext.PerformClick() } })  
+  
+    $btnKies.Add_Click({   
+        $fb = New-Object System.Windows.Forms.FolderBrowserDialog; if($fb.ShowDialog() -eq "OK"){   
+            $script:ManMap=$fb.SelectedPath; $lblMap.Text=$script:ManMap; $btnStartJob.Visible=$true; & $UpdateCount  
+        }   
+    })  
+    $chkRecurse.Add_CheckedChanged({ & $UpdateCount })  
+  
+    $btnStartJob.Add_Click({  
+        $script:ManFiles = Get-ChildItem $script:ManMap -File -Recurse:$chkRecurse.Checked | Where-Object {".pdf",".jpg",".png" -contains $_.Extension.ToLower()}  
+        $script:ManIdx = 0; $grpEdit.Visible=$true; $btnStartJob.Visible=$false; Laad-Bestand  
+    })  
+  
+    function Laad-Bestand {  
+        if ($null -eq $script:ManFiles -or $script:ManFiles.Count -eq 0) { [Windows.Forms.MessageBox]::Show("Geen bestanden!"); return }  
+        $f = $script:ManFiles[$script:ManIdx]; $lblFile.Text = $f.Name; $pdf.Visible=$false; $img.Visible=$false  
+          
+        if (-not (Test-Path $f.FullName)) { $lblFile.Text = "Bestand niet gevonden: $($f.Name)"; return }  
+  
+        $txtD.Clear(); $txtB.Clear(); $txtT.Clear(); & $UpdatePreview  
+  
+        if($f.Extension -eq ".pdf"){ $pdf.Navigate([Uri]$f.FullName); $pdf.Visible=$true } else { $img.Visible=$true; $img.ImageLocation=$f.FullName }  
+        [System.Windows.Forms.Application]::DoEvents(); $formMan.ActiveControl = $null; $formMan.ActiveControl = $txtD; $txtD.Select(); $txtD.Focus()  
+    }  
+  
+    $btnNext.Add_Click({  
+        $f = $script:ManFiles[$script:ManIdx]  
+        $raw = $txtD.Text -replace "\D", ""; if ($raw.Length -eq 0) { $dateStr = "Datum" } else { $pad = $raw.PadRight(8, "0"); $dd = $pad.Substring(0, 2); $mm = $pad.Substring(2, 2); $yyyy = $pad.Substring(4, 4); $dateStr = "$yyyy$mm$dd" }  
+        $safeBron = $txtB.Text -replace '[\\/:*?"<>|]', ''; $safeTitel = $txtT.Text -replace '[\\/:*?"<>|]', ''  
+        $newName = "${dateStr}_${safeBron}_${safeTitel}$($f.Extension)"; $target = Join-Path $f.DirectoryName $newName  
+          
+        if ($f.FullName -ne $target) {   
+            $pdf.Navigate("about:blank"); while($pdf.ReadyState -ne "Complete") { [System.Windows.Forms.Application]::DoEvents() }; [System.GC]::Collect(); [System.GC]::WaitForPendingFinalizers(); Start-Sleep -m 100  
+            $maxRetries = 3; $retryCount = 0; $success = $false  
+            while (-not $success -and $retryCount -lt $maxRetries) {  
+                try { Move-Item $f.FullName $target -ErrorAction Stop; $success = $true; $script:ManFiles[$script:ManIdx] = Get-Item $target } catch { $retryCount++; Start-Sleep -m 500 }  
+            }  
+            if (-not $success) { [Windows.Forms.MessageBox]::Show("Kan bestand niet hernoemen (in gebruik?)."); return }  
+        }  
+        $script:ManIdx++; if($script:ManIdx -lt $script:ManFiles.Count){ Laad-Bestand } else { $formMan.Close() }  
+    })  
+      
+    $btnSkip.Add_Click({  
+        $script:ManIdx++  
+        if($script:ManIdx -lt $script:ManFiles.Count){ Laad-Bestand } else { $formMan.Close() }  
+    })  
+      
+    $btnBack.Add_Click({ if($script:ManIdx -gt 0){ $script:ManIdx--; Laad-Bestand } })  
+  
+    Update-FormsTheme $formMan; $formMan.ShowDialog() | Out-Null  
+}  
+  
+# ---------------------------------------------------------  
+# HOOFDMENU  
+# ---------------------------------------------------------  
+$formMain = New-Object System.Windows.Forms.Form  
+$formMain.Text = "Rename Tool"  
+$formMain.WindowState = "Maximized"  
+$formMain.StartPosition = "CenterScreen"  
+  
+$pnlMenu = New-Object System.Windows.Forms.Panel; $pnlMenu.Size = New-Object System.Drawing.Size(600, 500); $pnlMenu.Name="pnlMenu"; $formMain.Controls.Add($pnlMenu)  
+$formMain.Add_Resize({   
+    $x = [int](($formMain.ClientSize.Width - $pnlMenu.Width) / 2)  
+    $y = [int](($formMain.ClientSize.Height - $pnlMenu.Height) / 2)  
+    $pnlMenu.Location = New-Object System.Drawing.Point($x, $y)  
+})  
+  
+$formMain.Add_FormClosed({ [System.Windows.Forms.Application]::Exit() })  
+  
+$lblWelcome = New-Object System.Windows.Forms.Label; $lblWelcome.Text = "Welkom terug,";   
+$lblWelcome.Font = New-Object System.Drawing.Font("Segoe UI", 12)  
+$lblWelcome.TextAlign = "MiddleCenter"; $lblWelcome.Size = New-Object System.Drawing.Size(600, 30); $lblWelcome.Location = New-Object System.Drawing.Point(0, 20); $pnlMenu.Controls.Add($lblWelcome)  
+  
+$lblW = New-Object System.Windows.Forms.Label; $lblW.Text="RENAME TOOL";   
+$lblW.Font = New-Object System.Drawing.Font("Segoe UI", 32, [System.Drawing.FontStyle]::Bold)  
+$lblW.TextAlign="MiddleCenter"; $lblW.Size= New-Object System.Drawing.Size(600, 70); $lblW.Location= New-Object System.Drawing.Point(0, 55); $pnlMenu.Controls.Add($lblW)  
+  
+# NIEUW: Namen en Ondertitels  
+$btnAuto = Maak-Knop "BATCH RENAMER" 100 160 400 80 "#3498db"; $pnlMenu.Controls.Add($btnAuto)  
+  
+$lblSub1 = New-Object System.Windows.Forms.Label  
+$lblSub1.Text = "Automatisch hernoemen op basis van een lijst met nieuwe bestandsnamen."  
+$lblSub1.Font = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Italic)  
+$lblSub1.ForeColor = [System.Drawing.Color]::Gray  
+$lblSub1.TextAlign = "TopCenter"  
+$lblSub1.Size = New-Object System.Drawing.Size(400, 40)  
+$lblSub1.Location = New-Object System.Drawing.Point(100, 245)  
+$pnlMenu.Controls.Add($lblSub1)  
+  
+$btnMan = Maak-Knop "INTERACTIVE RENAMER" 100 310 400 80 "#e67e22"; $pnlMenu.Controls.Add($btnMan)  
+  
+$lblSub2 = New-Object System.Windows.Forms.Label  
+$lblSub2.Text = "Bestanden visueel doorlopen en direct de juiste naam opstellen."  
+$lblSub2.Font = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Italic)  
+$lblSub2.ForeColor = [System.Drawing.Color]::Gray  
+$lblSub2.TextAlign = "TopCenter"  
+$lblSub2.Size = New-Object System.Drawing.Size(400, 40)  
+$lblSub2.Location = New-Object System.Drawing.Point(100, 395)  
+$pnlMenu.Controls.Add($lblSub2)  
+  
+$btnAuto.Add_Click({   
+    $formMain.Hide()  
+    Start-AutoRename $formMain.WindowState $formMain.Bounds  
+    if($script:GaTerugNaarMenu){ $formMain.Show() } else { $formMain.Close() }   
+})  
+  
+$btnMan.Add_Click({   
+    $formMain.Hide()  
+    Start-ManualRename  
+    if($script:GaTerugNaarMenu){ $formMain.Show() } else { $formMain.Close() }   
+})  
+  
+Update-FormsTheme $formMain; $formMain.ShowDialog() | Out-Null  
