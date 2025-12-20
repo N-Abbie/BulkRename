@@ -104,7 +104,8 @@ function Start-AutoRename ($startState, $startBounds) {
 
     $totalRowWidth = $chkMetadata.PreferredSize.Width + $buttonSpacing + 180 + $buttonSpacing + 220
     $rowStartX = [Math]::Max(20, [int](($mainPanel.Width - $totalRowWidth) / 2))
-    $chkMetadata.Location = New-Object System.Drawing.Point($rowStartX, $buttonRowY + [int]((40 - $chkMetadata.PreferredSize.Height) / 2))
+    $metadataY = $buttonRowY + [int]((40 - $chkMetadata.PreferredSize.Height) / 2)
+    $chkMetadata.Location = [System.Drawing.Point]::new($rowStartX, $metadataY)
     $mainPanel.Controls.Add($chkMetadata)
 
     $btnUndoX = $rowStartX + $chkMetadata.PreferredSize.Width + $buttonSpacing
