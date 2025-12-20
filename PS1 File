@@ -55,6 +55,43 @@ function Maak-Knop($tekst, $x, $y, $w, $h, $kleurHex) {
     return $btn  
 }  
   
+function Get-DetailIndex { param($folder, [string[]]$names)  
+    for ($i = 0; $i -lt 300; $i++) {  
+        $propName = $folder.GetDetailsOf($null, $i)  
+        if ($names | Where-Object { $_.ToLower() -eq $propName.ToLower() }) { return $i }  
+    }  
+    return -1  
+}  
+  
+function Update-FileMetadata { param($fileInfo, $dateStr, $safeBron, $safeTitel)  
+    if (-not $fileInfo) { return }  
+  
+    $parsedDate = $null  
+    if ($dateStr -match '^\d{8}$') {  
+        [DateTime]::TryParseExact($dateStr, "yyyyMMdd", [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::None, [ref]$parsedDate) | Out-Null  
+    }  
+  
+    if ($parsedDate) {  
+        try {  
+            $fileInfo.CreationTime = $parsedDate  
+            $fileInfo.LastWriteTime = $parsedDate  
+            $fileInfo.LastAccessTime = $parsedDate  
+        } catch { }  
+    }  
+  
+    try {  
+        $shell = New-Object -ComObject Shell.Application  
+        $folder = $shell.Namespace($fileInfo.DirectoryName)  
+        $item = $folder.ParseName($fileInfo.Name)  
+        if ($folder -and $item) {  
+            $titleIdx = Get-DetailIndex $folder @("Title", "Titel")  
+            if ($titleIdx -ge 0 -and $safeTitel) { $folder.SetDetailsOf($item, $titleIdx, $safeTitel) }  
+            $authorIdx = Get-DetailIndex $folder @("Authors", "Author", "Auteurs", "Auteur")  
+            if ($authorIdx -ge 0 -and $safeBron) { $folder.SetDetailsOf($item, $authorIdx, $safeBron) }  
+        }  
+    } catch { }  
+}  
+  
 # ---------------------------------------------------------  
 # TOOL 1: BATCH RENAMER  
 # ---------------------------------------------------------  
@@ -146,6 +183,7 @@ function Start-AutoRename ($startState, $startBounds) {
     $btnStart.Add_Click({  
         if(-not $script:GekozenMap){ [Windows.Forms.MessageBox]::Show("Kies map!"); return }  
         $rtbLog.Text = ""; $lijst = $script:IngeplakteTekst | ConvertFrom-Csv -Delimiter ";" -Header "Oud","Nieuw"  
+        $updateMetadata = $chkMetadata.Checked  
         foreach($r in $lijst){  
             if($r.Oud -eq "Oud" -or !$r.Oud){continue}  
             $pOud = Join-Path $script:GekozenMap $r.Oud; $pNieuw = Join-Path $script:GekozenMap $r.Nieuw  
@@ -153,6 +191,18 @@ function Start-AutoRename ($startState, $startBounds) {
                 $target = $pNieuw; $base=[System.IO.Path]::GetFileNameWithoutExtension($target); $ext=[System.IO.Path]::GetExtension($target); $c=1  
                 while(Test-Path $target){ $c++; $target = Join-Path $script:GekozenMap "$base`_v$c$ext" }  
                 Move-Item $pOud $target; $script:UndoLijst += @{Huidig=$target; Orig=$pOud}  
+  
+                if ($updateMetadata) {  
+                    $fileInfo = Get-Item $target  
+                    $namePart = [System.IO.Path]::GetFileNameWithoutExtension($fileInfo.Name)  
+                    if ($namePart -match '^(.+)_v\\d+$') { $namePart = $matches[1] }  
+                    $parts = $namePart -split "_", 3  
+                    $mdDate = if ($parts.Count -gt 0) { $parts[0] -replace '\\D', '' } else { "" }  
+                    $mdAuthor = if ($parts.Count -gt 1) { $parts[1] -replace '[\\\\/:*?\"<>|]', '' } else { "" }  
+                    $mdTitle = if ($parts.Count -gt 2) { $parts[2] -replace '[\\\\/:*?\"<>|]', '' } else { "" }  
+                    Update-FileMetadata $fileInfo $mdDate $mdAuthor $mdTitle  
+                }  
+  
                 Log-Kleur $rtbLog "[OK] $($r.Oud) -> $(Split-Path $target -Leaf)" "Green"  
             } else { Log-Kleur $rtbLog "[MIS] $($r.Oud) niet gevonden" "Red" }  
         }  
@@ -320,43 +370,6 @@ function Start-ManualRename {
     })  
     $txtB.Add_KeyDown({ if ($_.KeyCode -eq 'Enter') { $_.SuppressKeyPress = $true; & $script:JumpToNext $txtB } })  
     $txtT.Add_KeyDown({ if ($_.KeyCode -eq 'Enter') { $_.SuppressKeyPress = $true; $btnNext.PerformClick() } })  
-  
-    function Get-DetailIndex { param($folder, [string[]]$names)  
-        for ($i = 0; $i -lt 300; $i++) {  
-            $propName = $folder.GetDetailsOf($null, $i)  
-            if ($names | Where-Object { $_.ToLower() -eq $propName.ToLower() }) { return $i }  
-        }  
-        return -1  
-    }  
-  
-    function Update-FileMetadata { param($fileInfo, $dateStr, $safeBron, $safeTitel)  
-        if (-not $chkUpdateMetadata.Checked) { return }  
-  
-        $parsedDate = $null  
-        if ($dateStr -match '^\d{8}$') {  
-            [DateTime]::TryParseExact($dateStr, "yyyyMMdd", [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::None, [ref]$parsedDate) | Out-Null  
-        }  
-  
-        if ($parsedDate) {  
-            try {  
-                $fileInfo.CreationTime = $parsedDate  
-                $fileInfo.LastWriteTime = $parsedDate  
-                $fileInfo.LastAccessTime = $parsedDate  
-            } catch { }  
-        }  
-  
-        try {  
-            $shell = New-Object -ComObject Shell.Application  
-            $folder = $shell.Namespace($fileInfo.DirectoryName)  
-            $item = $folder.ParseName($fileInfo.Name)  
-            if ($folder -and $item) {  
-                $titleIdx = Get-DetailIndex $folder @("Title", "Titel")  
-                if ($titleIdx -ge 0 -and $safeTitel) { $folder.SetDetailsOf($item, $titleIdx, $safeTitel) }  
-                $authorIdx = Get-DetailIndex $folder @("Authors", "Author", "Auteurs", "Auteur")  
-                if ($authorIdx -ge 0 -and $safeBron) { $folder.SetDetailsOf($item, $authorIdx, $safeBron) }  
-            }  
-        } catch { }  
-    }  
   
     $btnKies.Add_Click({   
         $fb = New-Object System.Windows.Forms.FolderBrowserDialog; if($fb.ShowDialog() -eq "OK"){   
