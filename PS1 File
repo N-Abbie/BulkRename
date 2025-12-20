@@ -216,6 +216,15 @@ function Start-AutoRename ($startState, $startBounds) {
                 }  
   
                 Log-Kleur $rtbLog "[OK] $($r.Oud) -> $(Split-Path $target -Leaf)" "Green"  
+                if ($chkMetaBatch.Checked) {  
+                    $meta = Parse-NaamMetadata -naam (Split-Path $target -Leaf)  
+                    if ($meta) {  
+                        Set-BestandMetadata -pad $target -datum $meta.Datum -bron $meta.Bron -titel $meta.Titel  
+                        Log-Kleur $rtbLog "    Metadata bijgewerkt." "Gray"  
+                    } else {  
+                        Log-Kleur $rtbLog "    Metadata overslagen (kon niet worden gelezen uit naam)." "Gray"  
+                    }  
+                }  
             } else { Log-Kleur $rtbLog "[MIS] $($r.Oud) niet gevonden" "Red" }  
         }  
         $btnUndo.Enabled = $true; $btnUndo.BackColor = [System.Drawing.ColorTranslator]::FromHtml("#e74c3c"); $btnUndo.ForeColor = "White"  
@@ -333,6 +342,7 @@ function Start-ManualRename {
     $lblLivePreview.Font=New-Object System.Drawing.Font("Segoe UI", 11, [System.Drawing.FontStyle]::Italic)  
     $lblLivePreview.Name="lblLivePreview"  
     $grpEdit.Controls.Add($lblLivePreview)  
+    $chkMetaManual = New-Object System.Windows.Forms.CheckBox; $chkMetaManual.Text="Ook metadata bijwerken (datum, auteur, titel)"; $chkMetaManual.Location=New-Object System.Drawing.Point(20,410); $chkMetaManual.Size=New-Object System.Drawing.Size(400,25); $grpEdit.Controls.Add($chkMetaManual)  
   
     # KNOPPEN  
     $btnBack = Maak-Knop "Vorig" 20 440 100 45 "#e74c3c"; $grpEdit.Controls.Add($btnBack)  
