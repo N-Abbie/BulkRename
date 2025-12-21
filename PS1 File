@@ -286,7 +286,7 @@ function Start-ManualRename {
   
     # Live Preview Label  
     $pnlPreview = New-Object System.Windows.Forms.Panel;  
-    $pnlPreview.Location=New-Object System.Drawing.Point(20,380);  
+    $pnlPreview.Location=New-Object System.Drawing.Point(20,410);  
     $pnlPreview.Size=New-Object System.Drawing.Size(570,60);  
     $pnlPreview.BorderStyle="FixedSingle";  
     $pnlPreview.BackColor=[System.Drawing.ColorTranslator]::FromHtml("#f2f2f2");  
@@ -300,9 +300,9 @@ function Start-ManualRename {
     $pnlPreview.Controls.Add($lblLivePreview)  
   
     # KNOPPEN  
-    $btnBack = Maak-Knop "Vorig" 20 440 100 45 "#e74c3c"; $btnBack.Visible=$false; $grpEdit.Controls.Add($btnBack)  
-    $btnSkip = Maak-Knop "Overslaan" 130 440 100 45 "#95a5a6"; $grpEdit.Controls.Add($btnSkip)  
-    $btnNext = Maak-Knop "Hernoem en Volgende >" 240 440 250 45 "#27ae60";   
+    $btnBack = Maak-Knop "Vorig" 20 500 100 45 "#e74c3c"; $btnBack.Visible=$false; $grpEdit.Controls.Add($btnBack)  
+    $btnSkip = Maak-Knop "Overslaan" 130 500 100 45 "#95a5a6"; $grpEdit.Controls.Add($btnSkip)  
+    $btnNext = Maak-Knop "Hernoem en Volgende >" 240 500 250 45 "#27ae60";   
     $grpEdit.Controls.Add($btnNext)  
   
     $pdf = New-Object System.Windows.Forms.WebBrowser; $pdf.Dock="Fill"; $pnlView.Controls.Add($pdf)  
@@ -374,10 +374,19 @@ function Start-ManualRename {
         [System.Windows.Forms.Application]::DoEvents(); $formMan.ActiveControl = $null; $formMan.ActiveControl = $txtD; $txtD.Select(); $txtD.Focus()  
     }  
   
+    function Ga-VolgendeBestand {  
+        $script:ManIdx++  
+        if($script:ManIdx -lt $script:ManFiles.Count){ Laad-Bestand } else { $formMan.Close() }  
+    }  
+  
     $btnNext.Add_Click({  
         $f = $script:ManFiles[$script:ManIdx]  
-        $raw = $txtD.Text -replace "\D", ""; if ($raw.Length -eq 0) { $dateStr = "Datum" } else { $pad = $raw.PadRight(8, "0"); $dd = $pad.Substring(0, 2); $mm = $pad.Substring(2, 2); $yyyy = $pad.Substring(4, 4); $dateStr = "$yyyy$mm$dd" }  
-        $safeBron = $txtB.Text -replace '[\\/:*?"<>|]', ''; $safeTitel = $txtT.Text -replace '[\\/:*?"<>|]', ''  
+        $raw = $txtD.Text -replace "\D", ""  
+        $bronRaw = $txtB.Text.Trim()  
+        $titelRaw = $txtT.Text.Trim()  
+        if ($raw.Length -eq 0 -and [string]::IsNullOrWhiteSpace($bronRaw) -and [string]::IsNullOrWhiteSpace($titelRaw)) { Ga-VolgendeBestand; return }  
+        if ($raw.Length -eq 0) { $dateStr = "Datum" } else { $pad = $raw.PadRight(8, "0"); $dd = $pad.Substring(0, 2); $mm = $pad.Substring(2, 2); $yyyy = $pad.Substring(4, 4); $dateStr = "$yyyy$mm$dd" }  
+        $safeBron = $bronRaw -replace '[\\/:*?"<>|]', ''; $safeTitel = $titelRaw -replace '[\\/:*?"<>|]', ''  
         $newName = "${dateStr}_${safeBron}_${safeTitel}$($f.Extension)"; $target = Join-Path $f.DirectoryName $newName  
           
         if ($f.FullName -ne $target) {   
@@ -390,12 +399,11 @@ function Start-ManualRename {
             $f = $script:ManFiles[$script:ManIdx]  
             if (-not $script:HasEdited) { $script:HasEdited = $true; $btnBack.Visible = $true }  
         }  
-        $script:ManIdx++; if($script:ManIdx -lt $script:ManFiles.Count){ Laad-Bestand } else { $formMan.Close() }  
+        Ga-VolgendeBestand  
     })  
       
     $btnSkip.Add_Click({  
-        $script:ManIdx++  
-        if($script:ManIdx -lt $script:ManFiles.Count){ Laad-Bestand } else { $formMan.Close() }  
+        Ga-VolgendeBestand  
     })  
       
     $btnBack.Add_Click({ if($script:ManIdx -gt 0){ $script:ManIdx--; Laad-Bestand } })  
