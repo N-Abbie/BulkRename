@@ -269,7 +269,7 @@ function Start-AutoRename ($startState, $startBounds) {
             if($script:Annuleren){ Log-Kleur $rtbLog "Uitvoering geannuleerd." "Orange"; break }
             $oud = $row.Cells[0].Value; $nieuw = $row.Cells[1].Value
             $nieuw = $nieuw -replace "[\r\n\t]", ""
-            $nieuw = $nieuw -replace "[\\/:*?\"<>|]", "-"
+            $nieuw = $nieuw -replace '[\\/:*?\"<>|]', "-"
             $nieuw = $nieuw.Trim()
             $row.Cells[1].Value = $nieuw
             $pOud = Join-Path $script:GekozenMap $oud; $pNieuw = Join-Path $script:GekozenMap $nieuw
