@@ -176,6 +176,7 @@ function Start-AutoRename ($startState, $startBounds) {
 # ---------------------------------------------------------  
 function Start-ManualRename {  
     $script:GaTerugNaarMenu = $false  
+    $script:HasEdited = $false  
     $formMan = New-Object System.Windows.Forms.Form  
     $formMan.Text = "Rename Tool - Interactive Renamer"  
     $formMan.WindowState = "Maximized"  
@@ -190,6 +191,20 @@ function Start-ManualRename {
     $formMan.Add_Load({  
         $split.SplitterDistance = [int]($formMan.Width / 2)  
     })  
+    $lblDragHint = New-Object System.Windows.Forms.Label  
+    $lblDragHint.Text = "⇆ Sleep om vensters te wijzigen"  
+    $lblDragHint.AutoSize = $true  
+    $lblDragHint.Padding = New-Object System.Windows.Forms.Padding(8,4,8,4)  
+    $lblDragHint.BackColor = [System.Drawing.ColorTranslator]::FromHtml("#eef1f5")  
+    $lblDragHint.BorderStyle = "FixedSingle"  
+    $formMan.Controls.Add($lblDragHint)  
+    $lblDragHint.Visible = $false  
+    $lblDragHint.BringToFront()  
+    $hintTimer = New-Object System.Windows.Forms.Timer  
+    $hintTimer.Interval = 4000  
+    $hintTimer.Add_Tick({ $lblDragHint.Visible = $false; $hintTimer.Stop() })  
+    $setHintPosition = { $lblDragHint.Location = New-Object System.Drawing.Point([int](($formMan.ClientSize.Width - $lblDragHint.Width) / 2), 10) }  
+    $formMan.Add_Resize({ if($lblDragHint.Visible){ & $setHintPosition } })  
   
     $pnlCtrl = $split.Panel1  
     $pnlCtrl.Padding = New-Object System.Windows.Forms.Padding(20, 20, 100, 20)   
@@ -200,7 +215,7 @@ function Start-ManualRename {
   
     # -- KIES MAP SECTIE --  
     $grpSel = New-Object System.Windows.Forms.GroupBox; $grpSel.Text="1. Kies Map"  
-    $grpSel.Location=New-Object System.Drawing.Point(20,60); $grpSel.Size=New-Object System.Drawing.Size(600,140)   
+    $grpSel.Location=New-Object System.Drawing.Point(20,60); $grpSel.Size=New-Object System.Drawing.Size(620,140)   
     $grpSel.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Left  
     $pnlCtrl.Controls.Add($grpSel)  
   
@@ -212,7 +227,7 @@ function Start-ManualRename {
     $chkRecurse.Size=New-Object System.Drawing.Size(150,20)  
     $grpSel.Controls.Add($chkRecurse)  
       
-    $lblMap = New-Object System.Windows.Forms.Label; $lblMap.Text="Geen map gekozen"; $lblMap.Location=New-Object System.Drawing.Point(20,70); $lblMap.Size=New-Object System.Drawing.Size(550,20)  
+    $lblMap = New-Object System.Windows.Forms.Label; $lblMap.Text="Geen map gekozen"; $lblMap.Location=New-Object System.Drawing.Point(20,70); $lblMap.AutoSize=$true; $lblMap.MaximumSize=New-Object System.Drawing.Size(570,0)  
     $lblMap.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Left  
     $grpSel.Controls.Add($lblMap)  
   
@@ -228,13 +243,15 @@ function Start-ManualRename {
   
     # -- EDITOR SECTIE --  
     $grpEdit = New-Object System.Windows.Forms.GroupBox; $grpEdit.Text="2. Bestand Bewerken"  
-    $grpEdit.Location=New-Object System.Drawing.Point(20,260); $grpEdit.Size=New-Object System.Drawing.Size(600,570); $grpEdit.Visible=$false  
+    $grpEdit.Location=New-Object System.Drawing.Point(20,260); $grpEdit.Size=New-Object System.Drawing.Size(620,570); $grpEdit.Visible=$false  
     $grpEdit.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Left -bor [System.Windows.Forms.AnchorStyles]::Bottom  
     $pnlCtrl.Controls.Add($grpEdit)  
   
     $lblFile = New-Object System.Windows.Forms.Label; $lblFile.Location=New-Object System.Drawing.Point(20,30); $lblFile.Size=New-Object System.Drawing.Size(550,40)  
     $lblFile.Font = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)  
     $grpEdit.Controls.Add($lblFile)  
+    $lblFileCount = New-Object System.Windows.Forms.Label; $lblFileCount.Location=New-Object System.Drawing.Point(20,70); $lblFileCount.Size=New-Object System.Drawing.Size(550,20)  
+    $grpEdit.Controls.Add($lblFileCount)  
       
     function Maak-InputLabels ($grp, $y, $titel, $sub) {  
         $yPos = [int]$y  
@@ -250,33 +267,39 @@ function Start-ManualRename {
     }  
   
     # 1. DATUM  
-    Maak-InputLabels $grpEdit 80 "Datum" "Druk op 't' voor vandaag. DD-MM-YYYY"  
-    $txtD = New-Object System.Windows.Forms.MaskedTextBox; $txtD.Mask="00-00-0000"; $txtD.Location=New-Object System.Drawing.Point(20,135); $txtD.Size=New-Object System.Drawing.Size(550,25)  
+    Maak-InputLabels $grpEdit 100 "Datum" "Druk op 't' voor vandaag. DD-MM-YYYY"  
+    $txtD = New-Object System.Windows.Forms.MaskedTextBox; $txtD.Mask="00-00-0000"; $txtD.Location=New-Object System.Drawing.Point(20,155); $txtD.Size=New-Object System.Drawing.Size(550,25)  
     $grpEdit.Controls.Add($txtD)  
       
     # 2. BRON  
-    Maak-InputLabels $grpEdit 175 "Bron" "Auteur (persoon of instituut)"  
-    $txtB = New-Object System.Windows.Forms.TextBox; $txtB.Location=New-Object System.Drawing.Point(20,230); $txtB.Size=New-Object System.Drawing.Size(550,25)  
+    Maak-InputLabels $grpEdit 205 "Bron" "Auteur (persoon of instituut)"  
+    $txtB = New-Object System.Windows.Forms.TextBox; $txtB.Location=New-Object System.Drawing.Point(20,260); $txtB.Size=New-Object System.Drawing.Size(550,25)  
     $grpEdit.Controls.Add($txtB)  
       
     # 3. TITEL  
-    Maak-InputLabels $grpEdit 270 "Titel" "Beschrijving of titel van het document"  
-    $txtT = New-Object System.Windows.Forms.TextBox; $txtT.Location=New-Object System.Drawing.Point(20,325); $txtT.Size=New-Object System.Drawing.Size(550,25)  
+    Maak-InputLabels $grpEdit 310 "Titel" "Beschrijving of titel van het document"  
+    $txtT = New-Object System.Windows.Forms.TextBox; $txtT.Location=New-Object System.Drawing.Point(20,365); $txtT.Size=New-Object System.Drawing.Size(550,25)  
     $grpEdit.Controls.Add($txtT)  
   
     # Live Preview Label  
+    $pnlPreview = New-Object System.Windows.Forms.Panel;  
+    $pnlPreview.Location=New-Object System.Drawing.Point(20,420);  
+    $pnlPreview.Size=New-Object System.Drawing.Size(570,65);  
+    $pnlPreview.BorderStyle="FixedSingle";  
+    $pnlPreview.BackColor=[System.Drawing.ColorTranslator]::FromHtml("#f2f2f2");  
+    $grpEdit.Controls.Add($pnlPreview)  
     $lblLivePreview = New-Object System.Windows.Forms.Label;   
     $lblLivePreview.Text="Preview: ...";   
-    $lblLivePreview.Location=New-Object System.Drawing.Point(20,380);   
-    $lblLivePreview.Size=New-Object System.Drawing.Size(550,30);   
+    $lblLivePreview.Location=New-Object System.Drawing.Point(10,18);   
+    $lblLivePreview.Size=New-Object System.Drawing.Size(540,30);   
     $lblLivePreview.Font=New-Object System.Drawing.Font("Segoe UI", 11, [System.Drawing.FontStyle]::Italic)  
     $lblLivePreview.Name="lblLivePreview"  
-    $grpEdit.Controls.Add($lblLivePreview)  
+    $pnlPreview.Controls.Add($lblLivePreview)  
   
     # KNOPPEN  
-    $btnBack = Maak-Knop "Vorig" 20 440 100 45 "#e74c3c"; $grpEdit.Controls.Add($btnBack)  
-    $btnSkip = Maak-Knop "Overslaan" 130 440 100 45 "#95a5a6"; $grpEdit.Controls.Add($btnSkip)  
-    $btnNext = Maak-Knop "Hernoem en Volgende >" 240 440 250 45 "#27ae60";   
+    $btnBack = Maak-Knop "Vorig" 20 500 100 40 "#e74c3c"; $btnBack.Visible=$false; $grpEdit.Controls.Add($btnBack)  
+    $btnSkip = Maak-Knop "Overslaan" 130 500 100 40 "#95a5a6"; $grpEdit.Controls.Add($btnSkip)  
+    $btnNext = Maak-Knop "Hernoem en Volgende >" 240 500 250 40 "#27ae60";   
     $grpEdit.Controls.Add($btnNext)  
   
     $pdf = New-Object System.Windows.Forms.WebBrowser; $pdf.Dock="Fill"; $pnlView.Controls.Add($pdf)  
@@ -331,12 +354,15 @@ function Start-ManualRename {
   
     $btnStartJob.Add_Click({  
         $script:ManFiles = Get-ChildItem $script:ManMap -File -Recurse:$chkRecurse.Checked | Where-Object {".pdf",".jpg",".png" -contains $_.Extension.ToLower()}  
-        $script:ManIdx = 0; $grpEdit.Visible=$true; $btnStartJob.Visible=$false; Laad-Bestand  
+        $script:ManIdx = 0; $script:HasEdited = $false; $btnBack.Visible=$false  
+        $grpEdit.Visible=$true; $btnStartJob.Visible=$false; Laad-Bestand  
+        & $setHintPosition; $lblDragHint.Visible = $true; $hintTimer.Start()  
     })  
   
     function Laad-Bestand {  
         if ($null -eq $script:ManFiles -or $script:ManFiles.Count -eq 0) { [Windows.Forms.MessageBox]::Show("Geen bestanden!"); return }  
         $f = $script:ManFiles[$script:ManIdx]; $lblFile.Text = $f.Name; $pdf.Visible=$false; $img.Visible=$false  
+        $lblFileCount.Text = "Bestand {0} van {1}." -f ($script:ManIdx + 1), $script:ManFiles.Count  
           
         if (-not (Test-Path $f.FullName)) { $lblFile.Text = "Bestand niet gevonden: $($f.Name)"; return }  
   
@@ -360,6 +386,7 @@ function Start-ManualRename {
             }  
             if (-not $success) { [Windows.Forms.MessageBox]::Show("Kan bestand niet hernoemen (in gebruik?)."); return }  
             $f = $script:ManFiles[$script:ManIdx]  
+            if (-not $script:HasEdited) { $script:HasEdited = $true; $btnBack.Visible = $true }  
         }  
         $script:ManIdx++; if($script:ManIdx -lt $script:ManFiles.Count){ Laad-Bestand } else { $formMan.Close() }  
     })  
