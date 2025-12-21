@@ -150,28 +150,43 @@ function Start-AutoRename ($startState, $startBounds) {
     $btnLijst.Add_Click({
         $of = New-Object System.Windows.Forms.OpenFileDialog; $of.Filter = "Lijsten|*.csv;*.txt;*.xlsx|Alle|*.*"
         if ($of.ShowDialog() -eq "OK") {
-            $btnStart.Enabled = $false; $btnStart.BackColor = [System.Drawing.Color]::Gray
-            $lblLijst.Text = "Analyseren..."; $formAuto.Refresh()  
-            if ($of.FileName -match "\.xlsx$") {  
-                try {  
+        $btnStart.Enabled = $false; $btnStart.BackColor = [System.Drawing.Color]::Gray
+        $lblLijst.Text = "Analyseren..."; $formAuto.Refresh()  
+        $script:IngeplakteTekst = $null
+        if ($of.FileName -match "\.xlsx$") {  
+            $excel = $null; $wb = $null
+            try {  
                     Add-Type -AssemblyName Microsoft.Office.Interop.Excel  
-                    $excel = New-Object -ComObject Excel.Application; $wb = $excel.Workbooks.Open($of.FileName)  
-                    $ws = $wb.Sheets.Item(1); $res = "Oud;Nieuw`r`n"  
+                    $excel = New-Object -ComObject Excel.Application  
+                    $wb = $excel.Workbooks.Open($of.FileName)  
+                    $ws = $wb.Sheets.Item(1)  
                     $usedRange = $ws.UsedRange  
-                    if ($usedRange -and $usedRange.Rows.Count -gt 0) {  
-                        $startRow = $usedRange.Row  
-                        $endRow = $startRow + $usedRange.Rows.Count - 1  
-                        for($r=$startRow; $r -le $endRow; $r++){  
-                            $o = ([string]$ws.Cells.Item($r,1).Text).Trim()  
-                            $n = ([string]$ws.Cells.Item($r,2).Text).Trim()  
-                            if(-not [string]::IsNullOrWhiteSpace($o) -and -not [string]::IsNullOrWhiteSpace($n)){ $res+="$o;$n`r`n" }  
+                    $res = "Oud;Nieuw`r`n"; $gevonden = $false  
+                    if ($usedRange -and $usedRange.Rows.Count -gt 0 -and $usedRange.Columns.Count -gt 0) {  
+                        $values = $usedRange.Value2  
+                        if ($values -isnot [System.Array]) { $tmp = New-Object 'object[,]' 1,1; $tmp[0,0] = $values; $values = $tmp }  
+                        $rowStart = $values.GetLowerBound(0); $rowEnd = $values.GetUpperBound(0)  
+                        $colStart = $values.GetLowerBound(1); $colEnd = $values.GetUpperBound(1)  
+                        for($r=$rowStart; $r -le $rowEnd; $r++){  
+                            for($c=$colStart; $c -le $colEnd; $c++){  
+                                $cellText = [string]$values[$r,$c]  
+                                if($cellText -like "*;*"){  
+                                    $cellText = $cellText.Trim()  
+                                    $res += "$cellText`r`n"  
+                                    $gevonden = $true  
+                                }  
+                            }  
                         }  
                     }  
-                    $wb.Close($false); $excel.Quit(); $script:IngeplakteTekst = $res  
+                    if($gevonden){  
+                        $script:IngeplakteTekst = $res; $lblLijst.Text = "Bestand geladen!"; $lblLijst.ForeColor = [System.Drawing.Color]::Green  
+                    } else {  
+                        [Windows.Forms.MessageBox]::Show("Geen cellen met puntkomma gevonden in het hele bestand") | Out-Null; $lblLijst.Text = "Geen lijst"; $lblLijst.ForeColor = [System.Drawing.Color]::Red  
+                    }  
                 } catch { [Windows.Forms.MessageBox]::Show("Excel fout: $_") }  
-            } else { $script:IngeplakteTekst = Get-Content $of.FileName -Raw }  
-            $lblLijst.Text = "Bestand geladen!"; $lblLijst.ForeColor = [System.Drawing.Color]::Green  
-            $btnStart.Enabled = $true; $btnStart.BackColor = [System.Drawing.ColorTranslator]::FromHtml("#27ae60")  
+                finally { if($wb){ $wb.Close($false) } if($excel){ $excel.Quit() } }  
+            } else { $script:IngeplakteTekst = Get-Content $of.FileName -Raw; $lblLijst.Text = "Bestand geladen!"; $lblLijst.ForeColor = [System.Drawing.Color]::Green }  
+            if($script:IngeplakteTekst){ $btnStart.Enabled = $true; $btnStart.BackColor = [System.Drawing.ColorTranslator]::FromHtml("#27ae60") } else { $btnStart.Enabled = $false; $btnStart.BackColor = [System.Drawing.Color]::Gray }  
         }  
     })  
   
