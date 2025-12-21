@@ -43,7 +43,7 @@ function Update-FormsTheme ($form) {
             $ctrl.BackColor = $boxBg; $ctrl.ForeColor = $boxFg  
         }  
         if ($ctrl -is [System.Windows.Forms.Panel] -or $ctrl -is [System.Windows.Forms.SplitContainer]) {  
-             if ($ctrl.Name -ne "pnlInstr") { $ctrl.BackColor = $bg }  
+             if ($ctrl.Name -notin @("pnlInstr","pnlInstrMan")) { $ctrl.BackColor = $bg }  
         }  
     }  
     $form.Refresh()  
@@ -82,7 +82,7 @@ function Start-AutoRename ($startState, $startBounds) {
     $btnHome = Maak-Knop "<- Terug" 10 10 100 30 "#7f8c8d"; $mainPanel.Controls.Add($btnHome)  
     $btnHome.Add_Click({ $script:GaTerugNaarMenu = $true; $formAuto.Close() })  
   
-    $btnHelp = Maak-Knop "?" 760 10 30 30 "#95a5a6"; $mainPanel.Controls.Add($btnHelp)  
+    $btnHelp = Maak-Knop "?" 750 10 30 30 "#95a5a6"; $mainPanel.Controls.Add($btnHelp)  
     $pnlInstr = New-Object System.Windows.Forms.Panel; $pnlInstr.Name="pnlInstr"; $pnlInstr.Size=New-Object System.Drawing.Size(760,480); $pnlInstr.Location=New-Object System.Drawing.Point(20,80); $pnlInstr.BackColor="#FFFBE6"; $pnlInstr.Visible=$false; $pnlInstr.BorderStyle="FixedSingle"; $mainPanel.Controls.Add($pnlInstr)  
     $rtbI = New-Object System.Windows.Forms.RichTextBox; $rtbI.Location=New-Object System.Drawing.Point(20,50); $rtbI.Size=New-Object System.Drawing.Size(720,410); $rtbI.BackColor="#FFFBE6"; $rtbI.ForeColor="Black"; $rtbI.BorderStyle="None"; $pnlInstr.Controls.Add($rtbI)  
     $btnHelp.Add_Click({ $pnlInstr.Visible = -not $pnlInstr.Visible; $pnlInstr.BringToFront() })  
@@ -92,13 +92,13 @@ function Start-AutoRename ($startState, $startBounds) {
     $lblTitel.Location = New-Object System.Drawing.Point(0, 50); $lblTitel.Size = New-Object System.Drawing.Size(800, 40); $lblTitel.TextAlign = "MiddleCenter"; $mainPanel.Controls.Add($lblTitel)  
   
     $grpStap1 = New-Object System.Windows.Forms.GroupBox; $grpStap1.Text = "Stap 1: Map"; $grpStap1.Location = New-Object System.Drawing.Point(20, 110); $grpStap1.Size = New-Object System.Drawing.Size(760, 100); $mainPanel.Controls.Add($grpStap1)  
-    $btnMap = Maak-Knop "Kies map..." 20 30 150 30 "#bdc3c7"; $grpStap1.Controls.Add($btnMap)  
+    $btnMap = Maak-Knop "Kies map..." 20 30 150 30 "#2c3e50"; $grpStap1.Controls.Add($btnMap)  
     $chkRecurse = New-Object System.Windows.Forms.CheckBox; $chkRecurse.Text = "Inclusief submappen"; $chkRecurse.Location = New-Object System.Drawing.Point(20, 70); $chkRecurse.Size = New-Object System.Drawing.Size(200, 20); $grpStap1.Controls.Add($chkRecurse)  
     $lblMap = New-Object System.Windows.Forms.Label; $lblMap.Text = "Selecteer de map met te wijzigen documenten (of sleep map hierheen)"; $lblMap.Location = New-Object System.Drawing.Point(180, 35); $lblMap.Size = New-Object System.Drawing.Size(550, 40); $grpStap1.Controls.Add($lblMap)  
     $btnMap.Add_Click({ $fb = New-Object System.Windows.Forms.FolderBrowserDialog; if ($fb.ShowDialog() -eq "OK") { $script:GekozenMap = $fb.SelectedPath; $lblMap.Text = $script:GekozenMap } })  
   
     $grpStap2 = New-Object System.Windows.Forms.GroupBox; $grpStap2.Text = "Stap 2: Lijst (Excel/CSV/Klembord)"; $grpStap2.Location = New-Object System.Drawing.Point(20, 220); $grpStap2.Size = New-Object System.Drawing.Size(760, 80); $mainPanel.Controls.Add($grpStap2)  
-    $btnLijst = Maak-Knop "Kies bestand" 20 30 150 30 "#bdc3c7"; $grpStap2.Controls.Add($btnLijst)  
+    $btnLijst = Maak-Knop "Kies bestand" 20 30 150 30 "#2c3e50"; $grpStap2.Controls.Add($btnLijst)  
     $btnPlak = Maak-Knop "Plak Klembord" 180 30 150 30 "#f1c40f"; $grpStap2.Controls.Add($btnPlak)  
     $lblLijst = New-Object System.Windows.Forms.Label; $lblLijst.Text = "Geen lijst"; $lblLijst.Location = New-Object System.Drawing.Point(340, 35); $lblLijst.Size = New-Object System.Drawing.Size(400, 20); $grpStap2.Controls.Add($lblLijst)  
 
@@ -198,6 +198,11 @@ function Start-ManualRename {
       
     $btnHome = Maak-Knop "<- Terug" 20 10 100 30 "#7f8c8d"; $pnlCtrl.Controls.Add($btnHome)  
     $btnHome.Add_Click({ $script:GaTerugNaarMenu = $true; $formMan.Close() })  
+
+    $btnHelpMan = Maak-Knop "?" 610 10 30 30 "#95a5a6"; $pnlCtrl.Controls.Add($btnHelpMan)  
+    $pnlInstrMan = New-Object System.Windows.Forms.Panel; $pnlInstrMan.Name="pnlInstrMan"; $pnlInstrMan.Size=New-Object System.Drawing.Size(620,500); $pnlInstrMan.Location=New-Object System.Drawing.Point(20,50); $pnlInstrMan.BackColor="#FFFBE6"; $pnlInstrMan.Visible=$false; $pnlInstrMan.BorderStyle="FixedSingle"; $pnlCtrl.Controls.Add($pnlInstrMan)  
+    $rtbInstrMan = New-Object System.Windows.Forms.RichTextBox; $rtbInstrMan.Location=New-Object System.Drawing.Point(20,50); $rtbInstrMan.Size=New-Object System.Drawing.Size(580,430); $rtbInstrMan.BackColor="#FFFBE6"; $rtbInstrMan.ForeColor="Black"; $rtbInstrMan.BorderStyle="None"; $pnlInstrMan.Controls.Add($rtbInstrMan)  
+    $btnHelpMan.Add_Click({ $pnlInstrMan.Visible = -not $pnlInstrMan.Visible; $pnlInstrMan.BringToFront() })  
   
     # -- KIES MAP SECTIE --  
     $grpSel = New-Object System.Windows.Forms.GroupBox; $grpSel.Text="1. Kies Map"  
@@ -205,7 +210,7 @@ function Start-ManualRename {
     $grpSel.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Left  
     $pnlCtrl.Controls.Add($grpSel)  
   
-    $btnKies = Maak-Knop "Kies Map" 20 30 100 30 "#bdc3c7"; $grpSel.Controls.Add($btnKies)  
+    $btnKies = Maak-Knop "Kies Map" 20 30 100 30 "#2c3e50"; $grpSel.Controls.Add($btnKies)  
       
     $chkRecurse = New-Object System.Windows.Forms.CheckBox  
     $chkRecurse.Text="Inclusief submappen"   
@@ -285,7 +290,7 @@ function Start-ManualRename {
   
     # KNOPPEN  
     $btnBack = Maak-Knop "Vorig" 20 500 100 45 "#e74c3c"; $btnBack.Visible=$false; $grpEdit.Controls.Add($btnBack)  
-    $btnSkip = Maak-Knop "Overslaan" 130 500 100 45 "#95a5a6"; $grpEdit.Controls.Add($btnSkip)  
+    $btnSkip = Maak-Knop "Overslaan" 130 500 100 45 "#2c3e50"; $grpEdit.Controls.Add($btnSkip)  
     $btnNext = Maak-Knop "Hernoem en volgende >" 240 500 250 45 "#27ae60";   
     $grpEdit.Controls.Add($btnNext)  
   
