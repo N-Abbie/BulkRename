@@ -156,17 +156,17 @@ function Start-AutoRename ($startState, $startBounds) {
                 try {  
                     Add-Type -AssemblyName Microsoft.Office.Interop.Excel  
                     $excel = New-Object -ComObject Excel.Application; $wb = $excel.Workbooks.Open($of.FileName)  
-                    $ws = $wb.Sheets.Item(1)  
-                    $res = "Oud;Nieuw`r`n"  
+                    $ws = $wb.Sheets.Item(1); $res = "Oud;Nieuw`r`n"  
                     $usedRange = $ws.UsedRange  
-                    if ($usedRange -and $usedRange.Cells.Count -gt 0) {  
-                        $rangeValues = $usedRange.Value2  
-                        foreach ($cellVal in $rangeValues) {  
-                            $text = ([string]$cellVal).Trim()  
-                            if ($text -and $text.Contains(";")) { $res += "$text`r`n" }  
+                    if ($usedRange -and $usedRange.Rows.Count -gt 0) {  
+                        $startRow = $usedRange.Row  
+                        $endRow = $startRow + $usedRange.Rows.Count - 1  
+                        for($r=$startRow; $r -le $endRow; $r++){  
+                            $o = ([string]$ws.Cells.Item($r,1).Text).Trim()  
+                            $n = ([string]$ws.Cells.Item($r,2).Text).Trim()  
+                            if(-not [string]::IsNullOrWhiteSpace($o) -and -not [string]::IsNullOrWhiteSpace($n)){ $res+="$o;$n`r`n" }  
                         }  
                     }  
-                    if ($res -eq "Oud;Nieuw`r`n") { [Windows.Forms.MessageBox]::Show("Fout: Geen geldige data gevonden in Excel. Zorg dat de cellen het formaat 'Oudenaam;Nieuwenaam' bevatten."); $wb.Close($false); $excel.Quit(); return }  
                     $wb.Close($false); $excel.Quit(); $script:IngeplakteTekst = $res  
                 } catch { [Windows.Forms.MessageBox]::Show("Excel fout: $_") }  
             } else { $script:IngeplakteTekst = Get-Content $of.FileName -Raw }  
