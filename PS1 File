@@ -270,18 +270,18 @@ function Start-ManualRename {
     }  
   
     # 1. DATUM  
-    Maak-InputLabels $grpEdit 80 "Datum" "Druk op 't' voor vandaag. DD-MM-YYYY"  
-    $txtD = New-Object System.Windows.Forms.MaskedTextBox; $txtD.Mask="00-00-0000"; $txtD.Location=New-Object System.Drawing.Point(20,135); $txtD.Size=New-Object System.Drawing.Size(550,25)  
+    Maak-InputLabels $grpEdit 100 "Datum" "Druk op 't' voor vandaag. DD-MM-YYYY"  
+    $txtD = New-Object System.Windows.Forms.MaskedTextBox; $txtD.Mask="00-00-0000"; $txtD.Location=New-Object System.Drawing.Point(20,155); $txtD.Size=New-Object System.Drawing.Size(550,25)  
     $grpEdit.Controls.Add($txtD)  
       
     # 2. BRON  
-    Maak-InputLabels $grpEdit 175 "Bron" "Auteur (persoon of instituut)"  
-    $txtB = New-Object System.Windows.Forms.TextBox; $txtB.Location=New-Object System.Drawing.Point(20,230); $txtB.Size=New-Object System.Drawing.Size(550,25)  
+    Maak-InputLabels $grpEdit 205 "Bron" "Auteur (persoon of instituut)"  
+    $txtB = New-Object System.Windows.Forms.TextBox; $txtB.Location=New-Object System.Drawing.Point(20,260); $txtB.Size=New-Object System.Drawing.Size(550,25)  
     $grpEdit.Controls.Add($txtB)  
       
     # 3. TITEL  
-    Maak-InputLabels $grpEdit 270 "Titel" "Beschrijving of titel van het document"  
-    $txtT = New-Object System.Windows.Forms.TextBox; $txtT.Location=New-Object System.Drawing.Point(20,325); $txtT.Size=New-Object System.Drawing.Size(550,25)  
+    Maak-InputLabels $grpEdit 310 "Titel" "Beschrijving of titel van het document"  
+    $txtT = New-Object System.Windows.Forms.TextBox; $txtT.Location=New-Object System.Drawing.Point(20,365); $txtT.Size=New-Object System.Drawing.Size(550,25)  
     $grpEdit.Controls.Add($txtT)  
   
     # Live Preview Label  
