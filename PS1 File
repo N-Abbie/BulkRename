@@ -268,11 +268,16 @@ function Start-AutoRename ($startState, $startBounds) {
         foreach($row in $okRows){
             if($script:Annuleren){ Log-Kleur $rtbLog "Uitvoering geannuleerd." "Orange"; break }
             $oud = $row.Cells[0].Value; $nieuw = $row.Cells[1].Value
-            $nieuw = $nieuw -replace "[\\/:]", "-"
+            $nieuw = $nieuw -replace "[\r\n\t]", ""
+            $nieuw = $nieuw -replace "[\\/:*?\"<>|]", "-"
             $nieuw = $nieuw.Trim()
+            $row.Cells[1].Value = $nieuw
             $pOud = Join-Path $script:GekozenMap $oud; $pNieuw = Join-Path $script:GekozenMap $nieuw
+            $len = $pNieuw.Length
             if(Test-Path $pOud){
-                if (Test-Path $pNieuw){
+                if ($len -gt 255) {
+                    $row.Cells[2].Value = "Te lang"; Set-StatusStyle $row "Te lang"; Log-Kleur $rtbLog "[FOUT] Pad te lang ($len tekens): $oud" "Red"
+                } elseif (Test-Path $pNieuw){
                     $row.Cells[2].Value = "Conflict"; Set-StatusStyle $row "Conflict"; Log-Kleur $rtbLog "[SKIP] $oud conflict tijdens uitvoeren" "Orange"
                 } else {
                     Move-Item $pOud $pNieuw
