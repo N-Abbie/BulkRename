@@ -15,6 +15,8 @@ try {
 # ---------------------------------------------------------  
 $script:Theme = "Light"  
 $script:GaTerugNaarMenu = $false   
+$script:ActiveNeutralColor = "#2c3e50"  
+$script:DisabledButtonColor = [System.Drawing.Color]::Gray  
   
 # Functie om thema (Light) toe te passen  
 function Update-FormsTheme ($form) {  
@@ -54,13 +56,28 @@ function Maak-Knop($tekst, $x, $y, $w, $h, $kleurHex) {
     $btn.Text = $tekst  
     $btn.Location = New-Object System.Drawing.Point($x, $y)  
     $btn.Size = New-Object System.Drawing.Size($w, $h)  
-    $btn.BackColor = [System.Drawing.ColorTranslator]::FromHtml($kleurHex)  
     $btn.FlatStyle = "Flat"; $btn.FlatAppearance.BorderSize = 0  
     $btn.Font = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)  
-      
-    if ($kleurHex -match "#(f|e|d)" -and $kleurHex -ne "#e74c3c") { $btn.ForeColor = "Black" } else { $btn.ForeColor = "White" }  
     $btn.Cursor = "Hand"  
+    Set-KnopKleur $btn $kleurHex  
     return $btn  
+}  
+  
+function Set-KnopKleur($btn, $kleur) {  
+    $colorObj = if ($kleur -is [string]) { [System.Drawing.ColorTranslator]::FromHtml($kleur) } else { $kleur }  
+    $btn.BackColor = $colorObj  
+    $hex = "#{0:x2}{1:x2}{2:x2}" -f $colorObj.R, $colorObj.G, $colorObj.B  
+    if ($hex -match "#(f|e|d)" -and $hex -ne "#e74c3c") { $btn.ForeColor = "Black" } else { $btn.ForeColor = "White" }  
+}  
+  
+function Style-DisabledButton($btn) {  
+    $btn.Enabled = $false  
+    Set-KnopKleur $btn $script:DisabledButtonColor  
+}  
+  
+function Style-EnabledButton($btn, $kleurHex) {  
+    $btn.Enabled = $true  
+    Set-KnopKleur $btn $kleurHex  
 }  
 # ---------------------------------------------------------
 # TOOL 1: BATCH RENAMER
@@ -80,10 +97,10 @@ function Start-AutoRename ($startState, $startBounds) {
         $mainPanel.Location = New-Object System.Drawing.Point($x, 0)
     })  
   
-    $btnHome = Maak-Knop "<- Terug" 10 10 100 30 "#7f8c8d"; $mainPanel.Controls.Add($btnHome)  
+    $btnHome = Maak-Knop "<- Terug" 10 10 100 30 $script:ActiveNeutralColor; $mainPanel.Controls.Add($btnHome)  
     $btnHome.Add_Click({ $script:GaTerugNaarMenu = $true; $formAuto.Close() })  
   
-    $btnHelp = Maak-Knop "?" 750 10 30 30 "#95a5a6"; $mainPanel.Controls.Add($btnHelp)  
+    $btnHelp = Maak-Knop "?" 750 10 30 30 $script:ActiveNeutralColor; $mainPanel.Controls.Add($btnHelp)  
     $pnlInstr = New-Object System.Windows.Forms.Panel; $pnlInstr.Name="pnlInstr"; $pnlInstr.Size=New-Object System.Drawing.Size(760,480); $pnlInstr.Location=New-Object System.Drawing.Point(20,80); $pnlInstr.BackColor="#FFFBE6"; $pnlInstr.Visible=$false; $pnlInstr.BorderStyle="FixedSingle"; $mainPanel.Controls.Add($pnlInstr)  
     $rtbI = New-Object System.Windows.Forms.RichTextBox; $rtbI.Location=New-Object System.Drawing.Point(20,50); $rtbI.Size=New-Object System.Drawing.Size(720,410); $rtbI.BackColor="#FFFBE6"; $rtbI.ForeColor="Black"; $rtbI.BorderStyle="None"; $pnlInstr.Controls.Add($rtbI)  
     $btnHelp.Add_Click({ $pnlInstr.Visible = -not $pnlInstr.Visible; $pnlInstr.BringToFront() })  
@@ -134,23 +151,26 @@ function Start-AutoRename ($startState, $startBounds) {
     $rowStartX = [Math]::Max(20, [int](($mainPanel.Width - $totalRowWidth) / 2))
 
     $btnUndoX = $rowStartX
-    $btnUndo = Maak-Knop "Herstel wijzigingen" $btnUndoX $buttonRowY 180 40 "#95a5a6"; $btnUndo.Enabled=$false; $mainPanel.Controls.Add($btnUndo)
+    $btnUndo = Maak-Knop "Herstel wijzigingen" $btnUndoX $buttonRowY 180 40 $script:ActiveNeutralColor; $mainPanel.Controls.Add($btnUndo)
+    Style-DisabledButton $btnUndo
 
     $btnStartX = $btnUndoX + $btnUndo.Width + $buttonSpacing
     $btnStart = Maak-Knop "Analyseer" $btnStartX $buttonRowY 220 40 "#27ae60"; $mainPanel.Controls.Add($btnStart)
 
     $btnExecuteX = $btnStartX + $btnStart.Width + $buttonSpacing
-    $btnExecute = Maak-Knop "Voer uit" $btnExecuteX $buttonRowY 180 40 "#3498db"; $btnExecute.Enabled = $false; $mainPanel.Controls.Add($btnExecute)
+    $btnExecute = Maak-Knop "Voer uit" $btnExecuteX $buttonRowY 180 40 "#3498db"; $mainPanel.Controls.Add($btnExecute)
+    Style-DisabledButton $btnExecute
 
     $progress = New-Object System.Windows.Forms.ProgressBar; $progress.Location = New-Object System.Drawing.Point(20, 600); $progress.Size = New-Object System.Drawing.Size(600, 20); $progress.Style = "Continuous"; $mainPanel.Controls.Add($progress)
-    $btnCancel = Maak-Knop "Annuleren" 640 595 140 30 "#e74c3c"; $btnCancel.Enabled = $false; $mainPanel.Controls.Add($btnCancel)
+    $btnCancel = Maak-Knop "Annuleren" 640 595 140 30 "#e74c3c"; $mainPanel.Controls.Add($btnCancel)
+    Style-DisabledButton $btnCancel
 
     $rtbLog = New-Object System.Windows.Forms.RichTextBox; $rtbLog.Location=New-Object System.Drawing.Point(20,380); $rtbLog.Size=New-Object System.Drawing.Size(760,140); $rtbLog.ReadOnly=$true; $mainPanel.Controls.Add($rtbLog)
  
     $btnLijst.Add_Click({
         $of = New-Object System.Windows.Forms.OpenFileDialog; $of.Filter = "Lijsten|*.csv;*.txt;*.xlsx|Alle|*.*"
         if ($of.ShowDialog() -eq "OK") {
-        $btnStart.Enabled = $false; $btnStart.BackColor = [System.Drawing.Color]::Gray
+        Style-DisabledButton $btnStart
         $lblLijst.Text = "Analyseren..."; $formAuto.Refresh()  
         $script:IngeplakteTekst = $null
         if ($of.FileName -match "\.xlsx$") {  
@@ -186,7 +206,7 @@ function Start-AutoRename ($startState, $startBounds) {
                 } catch { [Windows.Forms.MessageBox]::Show("Excel fout: $_") }  
                 finally { if($wb){ $wb.Close($false) } if($excel){ $excel.Quit() } }  
             } else { $script:IngeplakteTekst = Get-Content $of.FileName -Raw; $lblLijst.Text = "Bestand geladen!"; $lblLijst.ForeColor = [System.Drawing.Color]::Green }  
-            if($script:IngeplakteTekst){ $btnStart.Enabled = $true; $btnStart.BackColor = [System.Drawing.ColorTranslator]::FromHtml("#27ae60") } else { $btnStart.Enabled = $false; $btnStart.BackColor = [System.Drawing.Color]::Gray }  
+            if($script:IngeplakteTekst){ Style-EnabledButton $btnStart "#27ae60" } else { Style-DisabledButton $btnStart }  
         }  
     })  
   
@@ -214,12 +234,11 @@ function Start-AutoRename ($startState, $startBounds) {
         if(-not $script:GekozenMap){ [Windows.Forms.MessageBox]::Show("Kies map!"); return }
         if(-not $script:IngeplakteTekst){ [Windows.Forms.MessageBox]::Show("Geen lijst geladen!"); return }
         $rtbLog.Text = ""; $gridPreview.Rows.Clear(); $script:Annuleren = $false
-        $btnCancel.Enabled = $true; $btnStart.Enabled = $false; $btnExecute.Enabled = $false
-        $btnStart.BackColor = [System.Drawing.Color]::Gray
+        Style-EnabledButton $btnCancel "#e74c3c"; Style-DisabledButton $btnStart; Style-DisabledButton $btnExecute
         $lijst = $script:IngeplakteTekst | ConvertFrom-Csv -Delimiter ";" -Header "Oud","Nieuw"
         $items = @()
         foreach($r in $lijst){ if($r.Oud -and $r.Oud -ne "Oud"){ $items += $r } }
-        if($items.Count -eq 0){ [Windows.Forms.MessageBox]::Show("Geen geldige regels gevonden."); $btnStart.Enabled = $true; $btnCancel.Enabled = $false; $btnStart.BackColor = [System.Drawing.ColorTranslator]::FromHtml("#27ae60"); return }
+        if($items.Count -eq 0){ [Windows.Forms.MessageBox]::Show("Geen geldige regels gevonden."); Style-EnabledButton $btnStart "#27ae60"; Style-DisabledButton $btnCancel; return }
         $progress.Minimum = 0; $progress.Maximum = $items.Count; $progress.Value = 0
         foreach($r in $items){
             if($script:Annuleren){ Log-Kleur $rtbLog "Analyse geannuleerd." "Orange"; break }
@@ -236,15 +255,15 @@ function Start-AutoRename ($startState, $startBounds) {
             [System.Windows.Forms.Application]::DoEvents()
         }
         $progress.Value = 0
-        $btnCancel.Enabled = $false; $btnStart.Enabled = $true; $btnStart.BackColor = [System.Drawing.ColorTranslator]::FromHtml("#27ae60")
-        $btnExecute.Enabled = ($gridPreview.Rows | Where-Object { $_.Cells[2].Value -eq "OK" }).Count -gt 0
+        Style-DisabledButton $btnCancel; Style-EnabledButton $btnStart "#27ae60"
+        if(($gridPreview.Rows | Where-Object { $_.Cells[2].Value -eq "OK" }).Count -gt 0){ Style-EnabledButton $btnExecute "#3498db" } else { Style-DisabledButton $btnExecute }
     })
 
     $btnExecute.Add_Click({
         if(-not $script:GekozenMap){ [Windows.Forms.MessageBox]::Show("Kies map!"); return }
         $okRows = $gridPreview.Rows | Where-Object { $_.Cells[2].Value -eq "OK" }
         if($okRows.Count -eq 0){ [Windows.Forms.MessageBox]::Show("Geen items met status OK om uit te voeren."); return }
-        $script:Annuleren = $false; $btnCancel.Enabled = $true; $btnExecute.Enabled = $false; $btnStart.Enabled = $false
+        $script:Annuleren = $false; Style-EnabledButton $btnCancel "#e74c3c"; Style-DisabledButton $btnExecute; Style-DisabledButton $btnStart
         $progress.Minimum = 0; $progress.Maximum = $okRows.Count; $progress.Value = 0
         foreach($row in $okRows){
             if($script:Annuleren){ Log-Kleur $rtbLog "Uitvoering geannuleerd." "Orange"; break }
@@ -267,12 +286,12 @@ function Start-AutoRename ($startState, $startBounds) {
             $progress.Value = [Math]::Min($progress.Maximum, $progress.Value + 1)
             [System.Windows.Forms.Application]::DoEvents()
         }
-        $btnCancel.Enabled = $false; $btnExecute.Enabled = $true; $btnStart.Enabled = $true
+        Style-DisabledButton $btnCancel; Style-EnabledButton $btnExecute "#3498db"; Style-EnabledButton $btnStart "#27ae60"
         $progress.Value = 0
-        $btnUndo.Enabled = $true; $btnUndo.BackColor = [System.Drawing.ColorTranslator]::FromHtml("#e74c3c"); $btnUndo.ForeColor = "White"
+        Style-EnabledButton $btnUndo "#e74c3c"
     })
 
-    $btnUndo.Add_Click({ foreach($i in $script:UndoLijst){ if(Test-Path $i.Huidig){ Move-Item $i.Huidig $i.Orig } }; $script:UndoLijst = @(); $btnUndo.Enabled = $false; $rtbLog.AppendText("`r`nHerstel voltooid.") })
+    $btnUndo.Add_Click({ foreach($i in $script:UndoLijst){ if(Test-Path $i.Huidig){ Move-Item $i.Huidig $i.Orig } }; $script:UndoLijst = @(); Style-DisabledButton $btnUndo; $rtbLog.AppendText("`r`nHerstel voltooid.") })
 
     Update-FormsTheme $formAuto; $formAuto.ShowDialog() | Out-Null
 }
@@ -302,10 +321,10 @@ function Start-ManualRename {
     $pnlCtrl.Padding = New-Object System.Windows.Forms.Padding(20, 20, 100, 20)   
     $pnlView = $split.Panel2  
       
-    $btnHome = Maak-Knop "<- Terug" 20 10 100 30 "#7f8c8d"; $pnlCtrl.Controls.Add($btnHome)  
+    $btnHome = Maak-Knop "<- Terug" 20 10 100 30 $script:ActiveNeutralColor; $pnlCtrl.Controls.Add($btnHome)  
     $btnHome.Add_Click({ $script:GaTerugNaarMenu = $true; $formMan.Close() })  
 
-    $btnHelpMan = Maak-Knop "?" 610 10 30 30 "#95a5a6"; $pnlCtrl.Controls.Add($btnHelpMan)  
+    $btnHelpMan = Maak-Knop "?" 610 10 30 30 $script:ActiveNeutralColor; $pnlCtrl.Controls.Add($btnHelpMan)  
     $pnlInstrMan = New-Object System.Windows.Forms.Panel; $pnlInstrMan.Name="pnlInstrMan"; $pnlInstrMan.Size=New-Object System.Drawing.Size(620,500); $pnlInstrMan.Location=New-Object System.Drawing.Point(20,50); $pnlInstrMan.BackColor="#FFFBE6"; $pnlInstrMan.Visible=$false; $pnlInstrMan.BorderStyle="FixedSingle"; $pnlCtrl.Controls.Add($pnlInstrMan)  
     $rtbInstrMan = New-Object System.Windows.Forms.RichTextBox; $rtbInstrMan.Location=New-Object System.Drawing.Point(20,50); $rtbInstrMan.Size=New-Object System.Drawing.Size(580,430); $rtbInstrMan.BackColor="#FFFBE6"; $rtbInstrMan.ForeColor="Black"; $rtbInstrMan.BorderStyle="None"; $pnlInstrMan.Controls.Add($rtbInstrMan)  
     $btnHelpMan.Add_Click({ $pnlInstrMan.Visible = -not $pnlInstrMan.Visible; $pnlInstrMan.BringToFront() })  
