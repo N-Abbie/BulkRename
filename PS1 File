@@ -297,6 +297,14 @@ function Start-ManualRename {
     # -- LIVE PREVIEW LOGICA --  
     $UpdatePreview = {  
         $raw = $txtD.Text -replace "\D", ""  
+        $bronTrimmed = $txtB.Text.Trim()  
+        $titelTrimmed = $txtT.Text.Trim()  
+        $currentFile = if ($script:ManFiles -and $script:ManIdx -ge 0 -and $script:ManIdx -lt $script:ManFiles.Count) { $script:ManFiles[$script:ManIdx] } else { $null }  
+        $hasInput = ($raw.Length -gt 0) -or (-not [string]::IsNullOrWhiteSpace($bronTrimmed)) -or (-not [string]::IsNullOrWhiteSpace($titelTrimmed))  
+        if (-not $hasInput -and $currentFile) {  
+            $lblLivePreview.Text = "Preview: $($currentFile.Name)"  
+            return  
+        }  
         if ($raw.Length -eq 0) {  
             $dStr = "Datum"  
         } else {  
@@ -304,11 +312,11 @@ function Start-ManualRename {
             $dd   = $pad.Substring(0, 2); $mm = $pad.Substring(2, 2); $yyyy = $pad.Substring(4, 4)  
             $dStr = "$yyyy$mm$dd"  
         }  
-        $sBron = $txtB.Text -replace '[\\/:*?"<>|]', ''  
-        $sTitel = $txtT.Text -replace '[\\/:*?"<>|]', ''  
+        $sBron = $bronTrimmed -replace '[\\/:*?"<>|]', ''  
+        $sTitel = $titelTrimmed -replace '[\\/:*?"<>|]', ''  
         if ($sBron -eq "") { $sBron = "Bron" }  
         if ($sTitel -eq "") { $sTitel = "Titel" }  
-        $ext = if ($script:ManFiles -and $script:ManFiles[$script:ManIdx]) { $script:ManFiles[$script:ManIdx].Extension } else { ".pdf" }  
+        $ext = if ($currentFile) { $currentFile.Extension } else { ".pdf" }  
         $lblLivePreview.Text = "Preview: ${dStr}_${sBron}_${sTitel}${ext}"  
     }  
   
