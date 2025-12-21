@@ -249,6 +249,8 @@ function Start-AutoRename ($startState, $startBounds) {
         foreach($row in $okRows){
             if($script:Annuleren){ Log-Kleur $rtbLog "Uitvoering geannuleerd." "Orange"; break }
             $oud = $row.Cells[0].Value; $nieuw = $row.Cells[1].Value
+            $nieuw = $nieuw -replace "[\\/:]", "-"
+            $nieuw = $nieuw.Trim()
             $pOud = Join-Path $script:GekozenMap $oud; $pNieuw = Join-Path $script:GekozenMap $nieuw
             if(Test-Path $pOud){
                 if (Test-Path $pNieuw){
