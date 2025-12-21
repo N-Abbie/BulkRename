@@ -198,13 +198,16 @@ function Start-ManualRename {
     $lblDragHint.BackColor = [System.Drawing.ColorTranslator]::FromHtml("#eef1f5")  
     $lblDragHint.BorderStyle = "FixedSingle"  
     $formMan.Controls.Add($lblDragHint)  
-    $lblDragHint.Visible = $false  
     $lblDragHint.BringToFront()  
     $hintTimer = New-Object System.Windows.Forms.Timer  
     $hintTimer.Interval = 4000  
     $hintTimer.Add_Tick({ $lblDragHint.Visible = $false; $hintTimer.Stop() })  
-    $setHintPosition = { $lblDragHint.Location = New-Object System.Drawing.Point([int](($formMan.ClientSize.Width - $lblDragHint.Width) / 2), 10) }  
-    $formMan.Add_Resize({ if($lblDragHint.Visible){ & $setHintPosition } })  
+    $formMan.Add_Shown({  
+        $lblDragHint.Location = New-Object System.Drawing.Point([int](($formMan.ClientSize.Width - $lblDragHint.Width)/2), 10)  
+        $lblDragHint.Visible = $true  
+        $hintTimer.Start()  
+    })  
+    $formMan.Add_Resize({ if($lblDragHint.Visible){ $lblDragHint.Location = New-Object System.Drawing.Point([int](($formMan.ClientSize.Width - $lblDragHint.Width)/2), 10) } })  
   
     $pnlCtrl = $split.Panel1  
     $pnlCtrl.Padding = New-Object System.Windows.Forms.Padding(20, 20, 100, 20)   
@@ -283,23 +286,23 @@ function Start-ManualRename {
   
     # Live Preview Label  
     $pnlPreview = New-Object System.Windows.Forms.Panel;  
-    $pnlPreview.Location=New-Object System.Drawing.Point(20,420);  
-    $pnlPreview.Size=New-Object System.Drawing.Size(570,65);  
+    $pnlPreview.Location=New-Object System.Drawing.Point(20,380);  
+    $pnlPreview.Size=New-Object System.Drawing.Size(570,60);  
     $pnlPreview.BorderStyle="FixedSingle";  
     $pnlPreview.BackColor=[System.Drawing.ColorTranslator]::FromHtml("#f2f2f2");  
     $grpEdit.Controls.Add($pnlPreview)  
     $lblLivePreview = New-Object System.Windows.Forms.Label;   
     $lblLivePreview.Text="Preview: ...";   
-    $lblLivePreview.Location=New-Object System.Drawing.Point(10,18);   
+    $lblLivePreview.Location=New-Object System.Drawing.Point(10,15);   
     $lblLivePreview.Size=New-Object System.Drawing.Size(540,30);   
     $lblLivePreview.Font=New-Object System.Drawing.Font("Segoe UI", 11, [System.Drawing.FontStyle]::Italic)  
     $lblLivePreview.Name="lblLivePreview"  
     $pnlPreview.Controls.Add($lblLivePreview)  
   
     # KNOPPEN  
-    $btnBack = Maak-Knop "Vorig" 20 500 100 40 "#e74c3c"; $btnBack.Visible=$false; $grpEdit.Controls.Add($btnBack)  
-    $btnSkip = Maak-Knop "Overslaan" 130 500 100 40 "#95a5a6"; $grpEdit.Controls.Add($btnSkip)  
-    $btnNext = Maak-Knop "Hernoem en Volgende >" 240 500 250 40 "#27ae60";   
+    $btnBack = Maak-Knop "Vorig" 20 440 100 45 "#e74c3c"; $btnBack.Visible=$false; $grpEdit.Controls.Add($btnBack)  
+    $btnSkip = Maak-Knop "Overslaan" 130 440 100 45 "#95a5a6"; $grpEdit.Controls.Add($btnSkip)  
+    $btnNext = Maak-Knop "Hernoem en Volgende >" 240 440 250 45 "#27ae60";   
     $grpEdit.Controls.Add($btnNext)  
   
     $pdf = New-Object System.Windows.Forms.WebBrowser; $pdf.Dock="Fill"; $pnlView.Controls.Add($pdf)  
@@ -356,7 +359,6 @@ function Start-ManualRename {
         $script:ManFiles = Get-ChildItem $script:ManMap -File -Recurse:$chkRecurse.Checked | Where-Object {".pdf",".jpg",".png" -contains $_.Extension.ToLower()}  
         $script:ManIdx = 0; $script:HasEdited = $false; $btnBack.Visible=$false  
         $grpEdit.Visible=$true; $btnStartJob.Visible=$false; Laad-Bestand  
-        & $setHintPosition; $lblDragHint.Visible = $true; $hintTimer.Start()  
     })  
   
     function Laad-Bestand {  
