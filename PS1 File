@@ -62,21 +62,22 @@ function Maak-Knop($tekst, $x, $y, $w, $h, $kleurHex) {
     $btn.Cursor = "Hand"  
     return $btn  
 }  
-# ---------------------------------------------------------  
-# TOOL 1: BATCH RENAMER  
-# ---------------------------------------------------------  
-function Start-AutoRename ($startState, $startBounds) {  
-    $script:GaTerugNaarMenu = $false  
-    $formAuto = New-Object System.Windows.Forms.Form  
-    $formAuto.Text = "Rename Tool - Batch Renamer"  
-    $formAuto.WindowState = "Maximized"  
-  
-    $script:GekozenMap = $null; $script:IngeplakteTekst = $null; $script:UndoLijst = @()  
-      
-    $mainPanel = New-Object System.Windows.Forms.Panel; $mainPanel.Size = New-Object System.Drawing.Size(800, 650); $formAuto.Controls.Add($mainPanel)  
-    $formAuto.Add_Resize({   
-        $x = [int](($formAuto.ClientSize.Width - $mainPanel.Width) / 2)  
-        $mainPanel.Location = New-Object System.Drawing.Point($x, 0)  
+# ---------------------------------------------------------
+# TOOL 1: BATCH RENAMER
+# ---------------------------------------------------------
+function Start-AutoRename ($startState, $startBounds) {
+    $script:GaTerugNaarMenu = $false
+    $formAuto = New-Object System.Windows.Forms.Form
+    $formAuto.Text = "Rename Tool - Batch Renamer"
+    $formAuto.WindowState = "Maximized"
+
+    $script:GekozenMap = $null; $script:IngeplakteTekst = $null; $script:UndoLijst = @()
+    $script:Annuleren = $false
+    
+    $mainPanel = New-Object System.Windows.Forms.Panel; $mainPanel.Size = New-Object System.Drawing.Size(800, 650); $formAuto.Controls.Add($mainPanel)
+    $formAuto.Add_Resize({
+        $x = [int](($formAuto.ClientSize.Width - $mainPanel.Width) / 2)
+        $mainPanel.Location = New-Object System.Drawing.Point($x, 0)
     })  
   
     $btnHome = Maak-Knop "<- Terug" 10 10 100 30 "#7f8c8d"; $mainPanel.Controls.Add($btnHome)  
@@ -87,39 +88,69 @@ function Start-AutoRename ($startState, $startBounds) {
     $rtbI = New-Object System.Windows.Forms.RichTextBox; $rtbI.Location=New-Object System.Drawing.Point(20,50); $rtbI.Size=New-Object System.Drawing.Size(720,410); $rtbI.BackColor="#FFFBE6"; $rtbI.ForeColor="Black"; $rtbI.BorderStyle="None"; $pnlInstr.Controls.Add($rtbI)  
     $btnHelp.Add_Click({ $pnlInstr.Visible = -not $pnlInstr.Visible; $pnlInstr.BringToFront() })  
   
-    $lblTitel = New-Object System.Windows.Forms.Label; $lblTitel.Text = "Batch Renamer"  
-    $lblTitel.Font = New-Object System.Drawing.Font("Segoe UI", 18, [System.Drawing.FontStyle]::Bold)  
-    $lblTitel.Location = New-Object System.Drawing.Point(0, 50); $lblTitel.Size = New-Object System.Drawing.Size(800, 40); $lblTitel.TextAlign = "MiddleCenter"; $mainPanel.Controls.Add($lblTitel)  
-  
-    $grpStap1 = New-Object System.Windows.Forms.GroupBox; $grpStap1.Text = "Stap 1: Map"; $grpStap1.Location = New-Object System.Drawing.Point(20, 110); $grpStap1.Size = New-Object System.Drawing.Size(760, 100); $mainPanel.Controls.Add($grpStap1)  
-    $btnMap = Maak-Knop "Kies map..." 20 30 150 30 "#2c3e50"; $grpStap1.Controls.Add($btnMap)  
-    $chkRecurse = New-Object System.Windows.Forms.CheckBox; $chkRecurse.Text = "Inclusief submappen"; $chkRecurse.Location = New-Object System.Drawing.Point(20, 70); $chkRecurse.Size = New-Object System.Drawing.Size(200, 20); $grpStap1.Controls.Add($chkRecurse)  
-    $lblMap = New-Object System.Windows.Forms.Label; $lblMap.Text = "Selecteer de map met te wijzigen documenten (of sleep map hierheen)"; $lblMap.Location = New-Object System.Drawing.Point(180, 35); $lblMap.Size = New-Object System.Drawing.Size(550, 40); $grpStap1.Controls.Add($lblMap)  
-    $btnMap.Add_Click({ $fb = New-Object System.Windows.Forms.FolderBrowserDialog; if ($fb.ShowDialog() -eq "OK") { $script:GekozenMap = $fb.SelectedPath; $lblMap.Text = $script:GekozenMap } })  
-  
-    $grpStap2 = New-Object System.Windows.Forms.GroupBox; $grpStap2.Text = "Stap 2: Lijst (Excel/CSV/Klembord)"; $grpStap2.Location = New-Object System.Drawing.Point(20, 220); $grpStap2.Size = New-Object System.Drawing.Size(760, 80); $mainPanel.Controls.Add($grpStap2)  
-    $btnLijst = Maak-Knop "Kies bestand" 20 30 150 30 "#2c3e50"; $grpStap2.Controls.Add($btnLijst)  
-    $btnPlak = Maak-Knop "Plak Klembord" 180 30 150 30 "#f1c40f"; $grpStap2.Controls.Add($btnPlak)  
-    $lblLijst = New-Object System.Windows.Forms.Label; $lblLijst.Text = "Geen lijst"; $lblLijst.Location = New-Object System.Drawing.Point(340, 35); $lblLijst.Size = New-Object System.Drawing.Size(400, 20); $grpStap2.Controls.Add($lblLijst)  
+    $lblTitel = New-Object System.Windows.Forms.Label; $lblTitel.Text = "Batch Renamer"
+    $lblTitel.Font = New-Object System.Drawing.Font("Segoe UI", 18, [System.Drawing.FontStyle]::Bold)
+    $lblTitel.Location = New-Object System.Drawing.Point(0, 50); $lblTitel.Size = New-Object System.Drawing.Size(800, 40); $lblTitel.TextAlign = "MiddleCenter"; $mainPanel.Controls.Add($lblTitel)
 
-    $buttonRowY = 320
+    $grpStap1 = New-Object System.Windows.Forms.GroupBox; $grpStap1.Text = "Stap 1: Map"; $grpStap1.Location = New-Object System.Drawing.Point(20, 110); $grpStap1.Size = New-Object System.Drawing.Size(760, 100); $mainPanel.Controls.Add($grpStap1)
+    $btnMap = Maak-Knop "Kies map..." 20 30 150 30 "#2c3e50"; $grpStap1.Controls.Add($btnMap)
+    $chkRecurse = New-Object System.Windows.Forms.CheckBox; $chkRecurse.Text = "Inclusief submappen"; $chkRecurse.Location = New-Object System.Drawing.Point(20, 70); $chkRecurse.Size = New-Object System.Drawing.Size(200, 20); $grpStap1.Controls.Add($chkRecurse)
+    $lblMap = New-Object System.Windows.Forms.Label; $lblMap.Text = "Selecteer de map met te wijzigen documenten (of sleep map hierheen)"; $lblMap.Location = New-Object System.Drawing.Point(180, 35); $lblMap.Size = New-Object System.Drawing.Size(550, 40); $grpStap1.Controls.Add($lblMap)
+    $btnMap.Add_Click({ $fb = New-Object System.Windows.Forms.FolderBrowserDialog; if ($fb.ShowDialog() -eq "OK") { $script:GekozenMap = $fb.SelectedPath; $lblMap.Text = $script:GekozenMap } })
+    $grpStap1.AllowDrop = $true; $lblMap.AllowDrop = $true
+    $dragEnterHandler = {
+        param($s,$e)
+        if ($e.Data.GetDataPresent([System.Windows.Forms.DataFormats]::FileDrop)) { $e.Effect = [System.Windows.Forms.DragDropEffects]::Copy }
+    }
+    $dragDropHandler = {
+        param($s,$e)
+        $data = $e.Data.GetData([System.Windows.Forms.DataFormats]::FileDrop)
+        if ($data -and $data.Count -gt 0) {
+            $pad = $data[0]
+            if (-not (Test-Path $pad)) { return }
+            $attribs = Get-Item $pad
+            if ($attribs.PSIsContainer) { $script:GekozenMap = $attribs.FullName } else { $script:GekozenMap = $attribs.DirectoryName }
+            $lblMap.Text = $script:GekozenMap
+        }
+    }
+    $grpStap1.Add_DragEnter($dragEnterHandler); $lblMap.Add_DragEnter($dragEnterHandler)
+    $grpStap1.Add_DragDrop($dragDropHandler); $lblMap.Add_DragDrop($dragDropHandler)
+
+    $grpStap2 = New-Object System.Windows.Forms.GroupBox; $grpStap2.Text = "Stap 2: Lijst (Excel/CSV/Klembord)"; $grpStap2.Location = New-Object System.Drawing.Point(20, 220); $grpStap2.Size = New-Object System.Drawing.Size(760, 80); $mainPanel.Controls.Add($grpStap2)
+    $btnLijst = Maak-Knop "Kies bestand" 20 30 150 30 "#2c3e50"; $grpStap2.Controls.Add($btnLijst)
+    $btnPlak = Maak-Knop "Plak Klembord" 180 30 150 30 "#f1c40f"; $grpStap2.Controls.Add($btnPlak)
+    $lblLijst = New-Object System.Windows.Forms.Label; $lblLijst.Text = "Geen lijst"; $lblLijst.Location = New-Object System.Drawing.Point(340, 35); $lblLijst.Size = New-Object System.Drawing.Size(400, 20); $grpStap2.Controls.Add($lblLijst)
+
+    $gridPreview = New-Object System.Windows.Forms.DataGridView; $gridPreview.Location = New-Object System.Drawing.Point(20, 320); $gridPreview.Size = New-Object System.Drawing.Size(760, 200); $gridPreview.ReadOnly = $true; $gridPreview.AllowUserToAddRows = $false; $gridPreview.AllowUserToDeleteRows = $false; $gridPreview.SelectionMode = "FullRowSelect"; $gridPreview.AutoSizeColumnsMode = "Fill"; $gridPreview.ColumnHeadersDefaultCellStyle.BackColor = [System.Drawing.ColorTranslator]::FromHtml("#ecf0f1"); $gridPreview.EnableHeadersVisualStyles = $false
+    [void]$gridPreview.Columns.Add("HuidigeNaam","Huidige naam")
+    [void]$gridPreview.Columns.Add("NieuweNaam","Nieuwe naam")
+    [void]$gridPreview.Columns.Add("Status","Status")
+    $mainPanel.Controls.Add($gridPreview)
+
+    $buttonRowY = 540
     $buttonSpacing = 20
 
-    $totalRowWidth = 180 + $buttonSpacing + 220
+    $totalRowWidth = 180 + $buttonSpacing + 220 + $buttonSpacing + 180
     $rowStartX = [Math]::Max(20, [int](($mainPanel.Width - $totalRowWidth) / 2))
 
     $btnUndoX = $rowStartX
-    $btnUndo = Maak-Knop "Herstel wijzigingen" $btnUndoX $buttonRowY 180 40 "#95a5a6"; $btnUndo.Enabled=$false; $mainPanel.Controls.Add($btnUndo)  
+    $btnUndo = Maak-Knop "Herstel wijzigingen" $btnUndoX $buttonRowY 180 40 "#95a5a6"; $btnUndo.Enabled=$false; $mainPanel.Controls.Add($btnUndo)
 
     $btnStartX = $btnUndoX + $btnUndo.Width + $buttonSpacing
-    $btnStart = Maak-Knop "Start Hernoemen" $btnStartX $buttonRowY 220 40 "#27ae60"; $mainPanel.Controls.Add($btnStart)  
+    $btnStart = Maak-Knop "Analyseer" $btnStartX $buttonRowY 220 40 "#27ae60"; $mainPanel.Controls.Add($btnStart)
 
-    $rtbLog = New-Object System.Windows.Forms.RichTextBox; $rtbLog.Location=New-Object System.Drawing.Point(20,380); $rtbLog.Size=New-Object System.Drawing.Size(760,190); $rtbLog.ReadOnly=$true; $mainPanel.Controls.Add($rtbLog)  
-  
-    $btnLijst.Add_Click({  
-        $of = New-Object System.Windows.Forms.OpenFileDialog; $of.Filter = "Lijsten|*.csv;*.txt;*.xlsx|Alle|*.*"  
-        if ($of.ShowDialog() -eq "OK") {  
-            $btnStart.Enabled = $false; $btnStart.BackColor = [System.Drawing.Color]::Gray  
+    $btnExecuteX = $btnStartX + $btnStart.Width + $buttonSpacing
+    $btnExecute = Maak-Knop "Voer uit" $btnExecuteX $buttonRowY 180 40 "#3498db"; $btnExecute.Enabled = $false; $mainPanel.Controls.Add($btnExecute)
+
+    $progress = New-Object System.Windows.Forms.ProgressBar; $progress.Location = New-Object System.Drawing.Point(20, 600); $progress.Size = New-Object System.Drawing.Size(600, 20); $progress.Style = "Continuous"; $mainPanel.Controls.Add($progress)
+    $btnCancel = Maak-Knop "Annuleren" 640 595 140 30 "#e74c3c"; $btnCancel.Enabled = $false; $mainPanel.Controls.Add($btnCancel)
+
+    $rtbLog = New-Object System.Windows.Forms.RichTextBox; $rtbLog.Location=New-Object System.Drawing.Point(20,380); $rtbLog.Size=New-Object System.Drawing.Size(760,140); $rtbLog.ReadOnly=$true; $mainPanel.Controls.Add($rtbLog)
+ 
+    $btnLijst.Add_Click({
+        $of = New-Object System.Windows.Forms.OpenFileDialog; $of.Filter = "Lijsten|*.csv;*.txt;*.xlsx|Alle|*.*"
+        if ($of.ShowDialog() -eq "OK") {
+            $btnStart.Enabled = $false; $btnStart.BackColor = [System.Drawing.Color]::Gray
             $lblLijst.Text = "Analyseren..."; $formAuto.Refresh()  
             if ($of.FileName -match "\.xlsx$") {  
                 try {  
@@ -139,37 +170,86 @@ function Start-AutoRename ($startState, $startBounds) {
         $script:IngeplakteTekst = [Windows.Forms.Clipboard]::GetText(); if ($script:IngeplakteTekst -match ";") { $lblLijst.Text = "Klembord data geladen"; $lblLijst.ForeColor = [System.Drawing.Color]::Green } else { [Windows.Forms.MessageBox]::Show("Fout: Geen geldige lijst gevonden.") }  
     })  
   
-    function Log-Kleur ($rtb, $tekst, $kleur) {  
-        $rtb.SelectionStart = $rtb.TextLength; $rtb.SelectionLength = 0; $rtb.SelectionColor = [System.Drawing.Color]::FromName($kleur); $rtb.AppendText($tekst + "`r`n"); $rtb.ScrollToCaret()  
-    }  
-  
-    $btnStart.Add_Click({  
-        if(-not $script:GekozenMap){ [Windows.Forms.MessageBox]::Show("Kies map!"); return }  
-        $rtbLog.Text = ""; $lijst = $script:IngeplakteTekst | ConvertFrom-Csv -Delimiter ";" -Header "Oud","Nieuw"  
-        foreach($r in $lijst){  
-            if($r.Oud -eq "Oud" -or !$r.Oud){continue}  
-            $pOud = Join-Path $script:GekozenMap $r.Oud; $pNieuw = Join-Path $script:GekozenMap $r.Nieuw  
-            if(Test-Path $pOud){  
-                $target = $pNieuw  
-                if ($pOud -eq $target) {  
-                    Log-Kleur $rtbLog "[SKIP] $($r.Oud) ongewijzigd: doelnaam is gelijk aan huidige naam" "Gray"  
-                    continue  
-                }  
-                if (Test-Path $target) {  
-                    Log-Kleur $rtbLog "[SKIP] $($r.Oud) overgeslagen: bestandsnaam bezet ($($r.Nieuw))" "Orange"  
-                    continue  
-                }  
-                Move-Item $pOud $target; $script:UndoLijst += @{Huidig=$target; Orig=$pOud}  
-                Log-Kleur $rtbLog "[OK] $($r.Oud) -> $(Split-Path $target -Leaf)" "Green"  
-            } else { Log-Kleur $rtbLog "[MIS] $($r.Oud) niet gevonden" "Red" }  
-        }  
-        $btnUndo.Enabled = $true; $btnUndo.BackColor = [System.Drawing.ColorTranslator]::FromHtml("#e74c3c"); $btnUndo.ForeColor = "White"  
-    })  
-  
-    $btnUndo.Add_Click({ foreach($i in $script:UndoLijst){ if(Test-Path $i.Huidig){ Move-Item $i.Huidig $i.Orig } }; $script:UndoLijst = @(); $btnUndo.Enabled = $false; $rtbLog.AppendText("`r`nHerstel voltooid.") })  
-  
-    Update-FormsTheme $formAuto; $formAuto.ShowDialog() | Out-Null  
-}  
+    function Log-Kleur ($rtb, $tekst, $kleur) {
+        $rtb.SelectionStart = $rtb.TextLength; $rtb.SelectionLength = 0; $rtb.SelectionColor = [System.Drawing.Color]::FromName($kleur); $rtb.AppendText($tekst + "`r`n"); $rtb.ScrollToCaret()
+    }
+
+    function Set-StatusStyle {
+        param($row,$status)
+        switch ($status) {
+            "OK" { $row.DefaultCellStyle.BackColor = [System.Drawing.ColorTranslator]::FromHtml("#d5f5e3"); $row.DefaultCellStyle.ForeColor = [System.Drawing.Color]::Black }
+            "Conflict" { $row.DefaultCellStyle.BackColor = [System.Drawing.ColorTranslator]::FromHtml("#fadbd8"); $row.DefaultCellStyle.ForeColor = [System.Drawing.Color]::Black }
+            "Niet gevonden" { $row.DefaultCellStyle.BackColor = [System.Drawing.ColorTranslator]::FromHtml("#fadbd8"); $row.DefaultCellStyle.ForeColor = [System.Drawing.Color]::Black }
+            default { $row.DefaultCellStyle.BackColor = [System.Drawing.ColorTranslator]::FromHtml("#ecf0f1"); $row.DefaultCellStyle.ForeColor = [System.Drawing.Color]::Black }
+        }
+    }
+
+    $btnCancel.Add_Click({ $script:Annuleren = $true })
+
+    $btnStart.Add_Click({
+        if(-not $script:GekozenMap){ [Windows.Forms.MessageBox]::Show("Kies map!"); return }
+        if(-not $script:IngeplakteTekst){ [Windows.Forms.MessageBox]::Show("Geen lijst geladen!"); return }
+        $rtbLog.Text = ""; $gridPreview.Rows.Clear(); $script:Annuleren = $false
+        $btnCancel.Enabled = $true; $btnStart.Enabled = $false; $btnExecute.Enabled = $false
+        $btnStart.BackColor = [System.Drawing.Color]::Gray
+        $lijst = $script:IngeplakteTekst | ConvertFrom-Csv -Delimiter ";" -Header "Oud","Nieuw"
+        $items = @()
+        foreach($r in $lijst){ if($r.Oud -and $r.Oud -ne "Oud"){ $items += $r } }
+        if($items.Count -eq 0){ [Windows.Forms.MessageBox]::Show("Geen geldige regels gevonden."); $btnStart.Enabled = $true; $btnCancel.Enabled = $false; $btnStart.BackColor = [System.Drawing.ColorTranslator]::FromHtml("#27ae60"); return }
+        $progress.Minimum = 0; $progress.Maximum = $items.Count; $progress.Value = 0
+        foreach($r in $items){
+            if($script:Annuleren){ Log-Kleur $rtbLog "Analyse geannuleerd." "Orange"; break }
+            $pOud = Join-Path $script:GekozenMap $r.Oud; $pNieuw = Join-Path $script:GekozenMap $r.Nieuw
+            $status = ""
+            if(Test-Path $pOud){
+                if ($pOud -eq $pNieuw) { $status = "Ongewijzigd"; Log-Kleur $rtbLog "[SKIP] $($r.Oud) ongewijzigd" "Gray" }
+                elseif (Test-Path $pNieuw) { $status = "Conflict"; Log-Kleur $rtbLog "[SKIP] $($r.Oud) conflict: $($r.Nieuw) bestaat al" "Orange" }
+                else { $status = "OK"; Log-Kleur $rtbLog "[OK] $($r.Oud) klaar voor hernoemen" "Green" }
+            } else { $status = "Niet gevonden"; Log-Kleur $rtbLog "[MIS] $($r.Oud) niet gevonden" "Red" }
+            $idx = $gridPreview.Rows.Add($r.Oud, $r.Nieuw, $status)
+            Set-StatusStyle $gridPreview.Rows[$idx] $status
+            $progress.Value = [Math]::Min($progress.Maximum, $progress.Value + 1)
+            [System.Windows.Forms.Application]::DoEvents()
+        }
+        $progress.Value = 0
+        $btnCancel.Enabled = $false; $btnStart.Enabled = $true; $btnStart.BackColor = [System.Drawing.ColorTranslator]::FromHtml("#27ae60")
+        $btnExecute.Enabled = ($gridPreview.Rows | Where-Object { $_.Cells[2].Value -eq "OK" }).Count -gt 0
+    })
+
+    $btnExecute.Add_Click({
+        if(-not $script:GekozenMap){ [Windows.Forms.MessageBox]::Show("Kies map!"); return }
+        $okRows = $gridPreview.Rows | Where-Object { $_.Cells[2].Value -eq "OK" }
+        if($okRows.Count -eq 0){ [Windows.Forms.MessageBox]::Show("Geen items met status OK om uit te voeren."); return }
+        $script:Annuleren = $false; $btnCancel.Enabled = $true; $btnExecute.Enabled = $false; $btnStart.Enabled = $false
+        $progress.Minimum = 0; $progress.Maximum = $okRows.Count; $progress.Value = 0
+        foreach($row in $okRows){
+            if($script:Annuleren){ Log-Kleur $rtbLog "Uitvoering geannuleerd." "Orange"; break }
+            $oud = $row.Cells[0].Value; $nieuw = $row.Cells[1].Value
+            $pOud = Join-Path $script:GekozenMap $oud; $pNieuw = Join-Path $script:GekozenMap $nieuw
+            if(Test-Path $pOud){
+                if (Test-Path $pNieuw){
+                    $row.Cells[2].Value = "Conflict"; Set-StatusStyle $row "Conflict"; Log-Kleur $rtbLog "[SKIP] $oud conflict tijdens uitvoeren" "Orange"
+                } else {
+                    Move-Item $pOud $pNieuw
+                    $row.Cells[2].Value = "Voltooid"; Set-StatusStyle $row "OK"
+                    $script:UndoLijst += @{Huidig=$pNieuw; Orig=$pOud}
+                    Log-Kleur $rtbLog "[OK] $oud -> $(Split-Path $pNieuw -Leaf)" "Green"
+                }
+            } else {
+                $row.Cells[2].Value = "Niet gevonden"; Set-StatusStyle $row "Niet gevonden"; Log-Kleur $rtbLog "[MIS] $oud niet gevonden tijdens uitvoeren" "Red"
+            }
+            $progress.Value = [Math]::Min($progress.Maximum, $progress.Value + 1)
+            [System.Windows.Forms.Application]::DoEvents()
+        }
+        $btnCancel.Enabled = $false; $btnExecute.Enabled = $true; $btnStart.Enabled = $true
+        $progress.Value = 0
+        $btnUndo.Enabled = $true; $btnUndo.BackColor = [System.Drawing.ColorTranslator]::FromHtml("#e74c3c"); $btnUndo.ForeColor = "White"
+    })
+
+    $btnUndo.Add_Click({ foreach($i in $script:UndoLijst){ if(Test-Path $i.Huidig){ Move-Item $i.Huidig $i.Orig } }; $script:UndoLijst = @(); $btnUndo.Enabled = $false; $rtbLog.AppendText("`r`nHerstel voltooid.") })
+
+    Update-FormsTheme $formAuto; $formAuto.ShowDialog() | Out-Null
+}
   
 # ---------------------------------------------------------  
 # TOOL 2: INTERACTIVE RENAMER  
