@@ -191,29 +191,12 @@ function Start-ManualRename {
     $formMan.Add_Load({  
         $split.SplitterDistance = [int]($formMan.Width / 2)  
     })  
-    $lblDragHint = New-Object System.Windows.Forms.Label  
-    $lblDragHint.Text = "⇆ Sleep om vensters te wijzigen"  
-    $lblDragHint.AutoSize = $true  
-    $lblDragHint.Padding = New-Object System.Windows.Forms.Padding(8,4,8,4)  
-    $lblDragHint.BackColor = [System.Drawing.ColorTranslator]::FromHtml("#eef1f5")  
-    $lblDragHint.BorderStyle = "FixedSingle"  
-    $formMan.Controls.Add($lblDragHint)  
-    $lblDragHint.BringToFront()  
-    $hintTimer = New-Object System.Windows.Forms.Timer  
-    $hintTimer.Interval = 4000  
-    $hintTimer.Add_Tick({ $lblDragHint.Visible = $false; $hintTimer.Stop() })  
-    $formMan.Add_Shown({  
-        $lblDragHint.Location = New-Object System.Drawing.Point([int](($formMan.ClientSize.Width - $lblDragHint.Width)/2), 10)  
-        $lblDragHint.Visible = $true  
-        $hintTimer.Start()  
-    })  
-    $formMan.Add_Resize({ if($lblDragHint.Visible){ $lblDragHint.Location = New-Object System.Drawing.Point([int](($formMan.ClientSize.Width - $lblDragHint.Width)/2), 10) } })  
   
     $pnlCtrl = $split.Panel1  
     $pnlCtrl.Padding = New-Object System.Windows.Forms.Padding(20, 20, 100, 20)   
     $pnlView = $split.Panel2  
       
-    $btnHome = Maak-Knop "<- Terug" 10 10 100 30 "#7f8c8d"; $pnlCtrl.Controls.Add($btnHome)  
+    $btnHome = Maak-Knop "<- Terug" 20 10 100 30 "#7f8c8d"; $pnlCtrl.Controls.Add($btnHome)  
     $btnHome.Add_Click({ $script:GaTerugNaarMenu = $true; $formMan.Close() })  
   
     # -- KIES MAP SECTIE --  
@@ -239,7 +222,7 @@ function Start-ManualRename {
     $lblCount.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Left  
     $grpSel.Controls.Add($lblCount)  
   
-    $btnStartJob = Maak-Knop "Start hernoemen" 20 210 600 40 "#27ae60"  
+    $btnStartJob = Maak-Knop "Start Hernoemen" 20 210 620 40 "#27ae60"  
     $btnStartJob.Visible=$false  
     $btnStartJob.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Left  
     $pnlCtrl.Controls.Add($btnStartJob)  
@@ -254,6 +237,7 @@ function Start-ManualRename {
     $lblFile.Font = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)  
     $grpEdit.Controls.Add($lblFile)  
     $lblFileCount = New-Object System.Windows.Forms.Label; $lblFileCount.Location=New-Object System.Drawing.Point(20,70); $lblFileCount.Size=New-Object System.Drawing.Size(550,20)  
+    $lblFileCount.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Italic)  
     $grpEdit.Controls.Add($lblFileCount)  
       
     function Maak-InputLabels ($grp, $y, $titel, $sub) {  
@@ -302,7 +286,7 @@ function Start-ManualRename {
     # KNOPPEN  
     $btnBack = Maak-Knop "Vorig" 20 500 100 45 "#e74c3c"; $btnBack.Visible=$false; $grpEdit.Controls.Add($btnBack)  
     $btnSkip = Maak-Knop "Overslaan" 130 500 100 45 "#95a5a6"; $grpEdit.Controls.Add($btnSkip)  
-    $btnNext = Maak-Knop "Hernoem en Volgende >" 240 500 250 45 "#27ae60";   
+    $btnNext = Maak-Knop "Hernoem en volgende >" 240 500 250 45 "#27ae60";   
     $grpEdit.Controls.Add($btnNext)  
   
     $pdf = New-Object System.Windows.Forms.WebBrowser; $pdf.Dock="Fill"; $pnlView.Controls.Add($pdf)  
@@ -358,6 +342,7 @@ function Start-ManualRename {
     $btnStartJob.Add_Click({  
         $script:ManFiles = Get-ChildItem $script:ManMap -File -Recurse:$chkRecurse.Checked | Where-Object {".pdf",".jpg",".png" -contains $_.Extension.ToLower()}  
         $script:ManIdx = 0; $script:HasEdited = $false; $btnBack.Visible=$false  
+        $grpEdit.Location = New-Object System.Drawing.Point(20,220)  
         $grpEdit.Visible=$true; $btnStartJob.Visible=$false; Laad-Bestand  
     })  
   
@@ -384,7 +369,20 @@ function Start-ManualRename {
         $raw = $txtD.Text -replace "\D", ""  
         $bronRaw = $txtB.Text.Trim()  
         $titelRaw = $txtT.Text.Trim()  
-        if ($raw.Length -eq 0 -and [string]::IsNullOrWhiteSpace($bronRaw) -and [string]::IsNullOrWhiteSpace($titelRaw)) { Ga-VolgendeBestand; return }  
+        $filledCount = 0  
+        if ($raw.Length -gt 0) { $filledCount++ }  
+        if (-not [string]::IsNullOrWhiteSpace($bronRaw)) { $filledCount++ }  
+        if (-not [string]::IsNullOrWhiteSpace($titelRaw)) { $filledCount++ }  
+        if ($filledCount -eq 0) { Ga-VolgendeBestand; return }  
+        if ($filledCount -lt 3) {  
+            $confirm = [System.Windows.Forms.MessageBox]::Show(  
+                "Je hebt niet alle velden ingevuld. Wil je toch met deze informatie doorgaan naar het volgende bestand?",  
+                "Onvolledige invoer",  
+                [System.Windows.Forms.MessageBoxButtons]::YesNo,  
+                [System.Windows.Forms.MessageBoxIcon]::Question  
+            )  
+            if ($confirm -eq [System.Windows.Forms.DialogResult]::No) { return }  
+        }  
         if ($raw.Length -eq 0) { $dateStr = "Datum" } else { $pad = $raw.PadRight(8, "0"); $dd = $pad.Substring(0, 2); $mm = $pad.Substring(2, 2); $yyyy = $pad.Substring(4, 4); $dateStr = "$yyyy$mm$dd" }  
         $safeBron = $bronRaw -replace '[\\/:*?"<>|]', ''; $safeTitel = $titelRaw -replace '[\\/:*?"<>|]', ''  
         $newName = "${dateStr}_${safeBron}_${safeTitel}$($f.Extension)"; $target = Join-Path $f.DirectoryName $newName  
