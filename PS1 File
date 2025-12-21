@@ -157,7 +157,16 @@ function Start-AutoRename ($startState, $startBounds) {
                     Add-Type -AssemblyName Microsoft.Office.Interop.Excel  
                     $excel = New-Object -ComObject Excel.Application; $wb = $excel.Workbooks.Open($of.FileName)  
                     $ws = $wb.Sheets.Item(1); $res = "Oud;Nieuw`r`n"  
-                    for($r=1;$r -le 100;$r++){ $o=$ws.Cells.Item($r,1).Text; $n=$ws.Cells.Item($r,2).Text; if($o -and $n){$res+="$o;$n`r`n"} }  
+                    $usedRange = $ws.UsedRange  
+                    if ($usedRange -and $usedRange.Rows.Count -gt 0) {  
+                        $startRow = $usedRange.Row  
+                        $endRow = $startRow + $usedRange.Rows.Count - 1  
+                        for($r=$startRow; $r -le $endRow; $r++){  
+                            $o = ([string]$ws.Cells.Item($r,1).Text).Trim()  
+                            $n = ([string]$ws.Cells.Item($r,2).Text).Trim()  
+                            if(-not [string]::IsNullOrWhiteSpace($o) -and -not [string]::IsNullOrWhiteSpace($n)){ $res+="$o;$n`r`n" }  
+                        }  
+                    }  
                     $wb.Close($false); $excel.Quit(); $script:IngeplakteTekst = $res  
                 } catch { [Windows.Forms.MessageBox]::Show("Excel fout: $_") }  
             } else { $script:IngeplakteTekst = Get-Content $of.FileName -Raw }  
