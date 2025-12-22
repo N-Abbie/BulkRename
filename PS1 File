@@ -528,7 +528,17 @@ function Start-ManualRename {
     }  
     
     $pnlPreviewHost = New-Object System.Windows.Forms.Panel; $pnlPreviewHost.Dock="Fill"; $pnlView.Controls.Add($pnlPreviewHost)  
-    $pnlViewFooter = New-Object System.Windows.Forms.Panel; $pnlViewFooter.Dock="Fill"; $pnlViewFooter.Visible=$false; $pnlViewFooter.BackColor = $pnlView.BackColor; $pnlView.Controls.Add($pnlViewFooter); $pnlView.Controls.SetChildIndex($pnlViewFooter, 0)  
+    $pnlViewFooter = New-Object System.Windows.Forms.Panel; $pnlViewFooter.Dock="Fill"; $pnlViewFooter.Visible=$false; $pnlViewFooter.BackColor = $pnlView.BackColor; $pnlView.Controls.Add($pnlViewFooter)  
+
+    $noPreviewLayout = New-Object System.Windows.Forms.TableLayoutPanel  
+    $noPreviewLayout.Dock = "Fill"  
+    $noPreviewLayout.ColumnCount = 1  
+    $noPreviewLayout.RowCount = 3  
+    [void]$noPreviewLayout.ColumnStyles.Add((New-Object System.Windows.Forms.ColumnStyle([System.Windows.Forms.SizeType]::Percent, 100)))  
+    [void]$noPreviewLayout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Percent, 50)))  
+    [void]$noPreviewLayout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::AutoSize)))  
+    [void]$noPreviewLayout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Percent, 50)))  
+    $pnlViewFooter.Controls.Add($noPreviewLayout)  
 
     $noPreviewContent = New-Object System.Windows.Forms.FlowLayoutPanel  
     $noPreviewContent.FlowDirection = "TopDown"  
@@ -538,7 +548,7 @@ function Start-ManualRename {
     $noPreviewContent.Anchor = [System.Windows.Forms.AnchorStyles]::None  
     $noPreviewContent.Padding = New-Object System.Windows.Forms.Padding(0)  
     $noPreviewContent.Margin = New-Object System.Windows.Forms.Padding(0)  
-    $pnlViewFooter.Controls.Add($noPreviewContent)  
+    [void]$noPreviewLayout.Controls.Add($noPreviewContent, 0, 1)  
 
     $imgNoPreview = New-Object System.Windows.Forms.PictureBox  
     $imgNoPreview.SizeMode = "CenterImage"  
@@ -548,7 +558,7 @@ function Start-ManualRename {
     $imgNoPreview.Visible = $false  
     $noPreviewContent.Controls.Add($imgNoPreview)  
 
-    $btnOpenExtern = Maak-Knop "📂 Open Bestand" 10 10 200 35 "#000632"; $btnOpenExtern.Visible=$false; $btnOpenExtern.Margin = New-Object System.Windows.Forms.Padding(0,0,0,10); $noPreviewContent.Controls.Add($btnOpenExtern)  
+    $btnOpenExtern = Maak-Knop "Open Bestand" 10 10 200 35 "#000632"; $btnOpenExtern.Visible=$false; $btnOpenExtern.Margin = New-Object System.Windows.Forms.Padding(0,0,0,10); $noPreviewContent.Controls.Add($btnOpenExtern)  
     $lblNoPreview = New-Object System.Windows.Forms.Label;   
     $lblNoPreview.Text = "Geen voorbeeldweergave beschikbaar voor dit bestandstype.`nGebruik de knop 'Open Bestand' om de inhoud te bekijken."  
     $lblNoPreview.AutoSize = $true  
@@ -556,16 +566,6 @@ function Start-ManualRename {
     $lblNoPreview.Font = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Italic)  
     $lblNoPreview.Visible = $false  
     $noPreviewContent.Controls.Add($lblNoPreview)  
-
-    $CenterNoPreview = {  
-        if (-not $noPreviewContent.Visible) { return }  
-        $targetSize = $noPreviewContent.PreferredSize  
-        $x = [Math]::Max(0, [int](($pnlViewFooter.ClientSize.Width - $targetSize.Width) / 2))  
-        $y = [Math]::Max(0, [int](($pnlViewFooter.ClientSize.Height - $targetSize.Height) / 2))  
-        $noPreviewContent.Location = New-Object System.Drawing.Point($x, $y)  
-    }  
-    $pnlViewFooter.Add_Resize($CenterNoPreview)  
-    $noPreviewContent.Add_SizeChanged($CenterNoPreview)  
   
     $pdf = New-Object System.Windows.Forms.WebBrowser; $pdf.Dock="Fill"; $pnlPreviewHost.Controls.Add($pdf)  
     $img = New-Object System.Windows.Forms.PictureBox; $img.Dock="Fill"; $img.SizeMode="Zoom"; $pnlPreviewHost.Controls.Add($img)  
@@ -671,7 +671,7 @@ function Start-ManualRename {
   
     function Laad-Bestand {  
         if ($null -eq $script:ManFiles -or $script:ManFiles.Count -eq 0) { [Windows.Forms.MessageBox]::Show("Geen bestanden!"); return }  
-        $f = $script:ManFiles[$script:ManIdx]; $lblFile.Text = $f.Name; $pdf.Visible=$false; $img.Visible=$false; $imgNoPreview.Visible=$false; $lblNoPreview.Visible=$false; $btnOpenExtern.Visible=$false; $pnlViewFooter.Visible=$false; $pnlPreviewHost.BringToFront(); &$ResetImageState  
+        $f = $script:ManFiles[$script:ManIdx]; $lblFile.Text = $f.Name; $pdf.Visible=$false; $img.Visible=$false; $imgNoPreview.Visible=$false; $lblNoPreview.Visible=$false; $btnOpenExtern.Visible=$false; $pnlViewFooter.Visible=$false; &$ResetImageState  
         $lblFileCount.Text = "Bestand {0} van {1}." -f ($script:ManIdx + 1), $script:ManFiles.Count  
         & $UpdateBackButtonVisibility  
           
