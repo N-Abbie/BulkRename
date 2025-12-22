@@ -73,6 +73,7 @@ function Set-KnopKleur($btn, $kleur) {
 function Style-DisabledButton($btn) {  
     $btn.Enabled = $false  
     Set-KnopKleur $btn $script:DisabledButtonColor  
+    $btn.ForeColor = [System.Drawing.Color]::Black  
 }  
   
 function Style-EnabledButton($btn, $kleurHex) {  
@@ -155,10 +156,10 @@ function Start-AutoRename ($startState, $startBounds) {
     Style-DisabledButton $btnUndo
 
     $btnStartX = $btnUndoX + $btnUndo.Width + $buttonSpacing
-    $btnStart = Maak-Knop "Analyseer" $btnStartX $buttonRowY 220 40 "#27ae60"; $mainPanel.Controls.Add($btnStart)
+    $btnStart = Maak-Knop "Controleer" $btnStartX $buttonRowY 220 40 "#27ae60"; $mainPanel.Controls.Add($btnStart)
 
     $btnExecuteX = $btnStartX + $btnStart.Width + $buttonSpacing
-    $btnExecute = Maak-Knop "Voer uit" $btnExecuteX $buttonRowY 180 40 "#3498db"; $mainPanel.Controls.Add($btnExecute)
+    $btnExecute = Maak-Knop "Start hernoemen" $btnExecuteX $buttonRowY 180 40 "#3498db"; $mainPanel.Controls.Add($btnExecute)
     Style-DisabledButton $btnExecute
 
     $progress = New-Object System.Windows.Forms.ProgressBar; $progress.Location = New-Object System.Drawing.Point(20, 600); $progress.Size = New-Object System.Drawing.Size(600, 20); $progress.Style = "Continuous"; $mainPanel.Controls.Add($progress)
@@ -171,7 +172,8 @@ function Start-AutoRename ($startState, $startBounds) {
         $of = New-Object System.Windows.Forms.OpenFileDialog; $of.Filter = "Lijsten|*.csv;*.txt;*.xlsx|Alle|*.*"
         if ($of.ShowDialog() -eq "OK") {
         Style-DisabledButton $btnStart
-        $lblLijst.Text = "Analyseren..."; $formAuto.Refresh()  
+        $btnStart.Text = "Controleer"
+        $lblLijst.Text = "Controleren..."; $formAuto.Refresh()  
         $script:IngeplakteTekst = $null
         if ($of.FileName -match "\.xlsx$") {  
             $excel = $null; $wb = $null
@@ -211,7 +213,7 @@ function Start-AutoRename ($startState, $startBounds) {
     })  
   
     $btnPlak.Add_Click({  
-        $script:IngeplakteTekst = [Windows.Forms.Clipboard]::GetText(); if ($script:IngeplakteTekst -match ";") { $lblLijst.Text = "Klembord data geladen"; $lblLijst.ForeColor = [System.Drawing.Color]::Green } else { [Windows.Forms.MessageBox]::Show("Fout: Geen geldige lijst gevonden.") }  
+        $script:IngeplakteTekst = [Windows.Forms.Clipboard]::GetText(); if ($script:IngeplakteTekst -match ";") { $lblLijst.Text = "Klembord data geladen"; $lblLijst.ForeColor = [System.Drawing.Color]::Green; Style-EnabledButton $btnStart "#27ae60"; $btnStart.Text = "Controleer" } else { [Windows.Forms.MessageBox]::Show("Fout: Geen geldige lijst gevonden.") }  
     })  
   
     function Log-Kleur ($rtb, $tekst, $kleur) {
@@ -238,10 +240,10 @@ function Start-AutoRename ($startState, $startBounds) {
         $lijst = $script:IngeplakteTekst | ConvertFrom-Csv -Delimiter ";" -Header "Oud","Nieuw"
         $items = @()
         foreach($r in $lijst){ if($r.Oud -and $r.Oud -ne "Oud"){ $items += $r } }
-        if($items.Count -eq 0){ [Windows.Forms.MessageBox]::Show("Geen geldige regels gevonden."); Style-EnabledButton $btnStart "#27ae60"; Style-DisabledButton $btnCancel; return }
+        if($items.Count -eq 0){ [Windows.Forms.MessageBox]::Show("Geen geldige regels gevonden."); Style-EnabledButton $btnStart "#27ae60"; $btnStart.Text = "Controleer"; Style-DisabledButton $btnCancel; return }
         $progress.Minimum = 0; $progress.Maximum = $items.Count; $progress.Value = 0
         foreach($r in $items){
-            if($script:Annuleren){ Log-Kleur $rtbLog "Analyse geannuleerd." "Orange"; break }
+            if($script:Annuleren){ Log-Kleur $rtbLog "Controle geannuleerd." "Orange"; break }
             $pOud = Join-Path $script:GekozenMap $r.Oud; $pNieuw = Join-Path $script:GekozenMap $r.Nieuw
             $status = ""
             if(Test-Path $pOud){
@@ -255,7 +257,7 @@ function Start-AutoRename ($startState, $startBounds) {
             [System.Windows.Forms.Application]::DoEvents()
         }
         $progress.Value = 0
-        Style-DisabledButton $btnCancel; Style-EnabledButton $btnStart "#27ae60"
+        Style-DisabledButton $btnCancel; Style-EnabledButton $btnStart "#27ae60"; $btnStart.Text = "Controleer opnieuw"
         if(($gridPreview.Rows | Where-Object { $_.Cells[2].Value -eq "OK" }).Count -gt 0){ Style-EnabledButton $btnExecute "#3498db" } else { Style-DisabledButton $btnExecute }
     })
 
@@ -340,7 +342,7 @@ function Start-ManualRename {
     $grpSel.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Left  
     $pnlCtrl.Controls.Add($grpSel)  
   
-    $btnKies = Maak-Knop "Kies Map" 20 30 100 30 "#2c3e50"; $grpSel.Controls.Add($btnKies)  
+    $btnKies = Maak-Knop "Kies map..." 20 30 120 30 "#2c3e50"; $grpSel.Controls.Add($btnKies)  
       
     $chkRecurse = New-Object System.Windows.Forms.CheckBox  
     $chkRecurse.Text="Inclusief submappen"   
@@ -348,7 +350,7 @@ function Start-ManualRename {
     $chkRecurse.Size=New-Object System.Drawing.Size(150,20)  
     $grpSel.Controls.Add($chkRecurse)  
       
-    $lblMap = New-Object System.Windows.Forms.Label; $lblMap.Text="Geen map gekozen"; $lblMap.Location=New-Object System.Drawing.Point(20,70); $lblMap.AutoSize=$true; $lblMap.MaximumSize=New-Object System.Drawing.Size(570,0)  
+    $lblMap = New-Object System.Windows.Forms.Label; $lblMap.Text="Selecteer de map met te wijzigen documenten (of sleep map hierheen)"; $lblMap.Location=New-Object System.Drawing.Point(20,70); $lblMap.AutoSize=$true; $lblMap.MaximumSize=New-Object System.Drawing.Size(570,0)  
     $lblMap.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Left  
     $grpSel.Controls.Add($lblMap)  
   
@@ -356,8 +358,28 @@ function Start-ManualRename {
     $lblCount.Name="lblCount"  
     $lblCount.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Left  
     $grpSel.Controls.Add($lblCount)  
+
+    $grpSel.AllowDrop = $true; $lblMap.AllowDrop = $true  
+    $dragEnterMan = {  
+        param($s,$e)  
+        if ($e.Data.GetDataPresent([System.Windows.Forms.DataFormats]::FileDrop)) { $e.Effect = [System.Windows.Forms.DragDropEffects]::Copy }  
+    }  
+    $dragDropMan = {  
+        param($s,$e)  
+        $data = $e.Data.GetData([System.Windows.Forms.DataFormats]::FileDrop)  
+        if ($data -and $data.Count -gt 0) {  
+            $pad = $data[0]  
+            if (-not (Test-Path $pad)) { return }  
+            $attribs = Get-Item $pad  
+            if ($attribs.PSIsContainer) { $script:ManMap = $attribs.FullName } else { $script:ManMap = $attribs.DirectoryName }  
+            $lblMap.Text = $script:ManMap  
+            & $UpdateCount  
+        }  
+    }  
+    $grpSel.Add_DragEnter($dragEnterMan); $lblMap.Add_DragEnter($dragEnterMan)  
+    $grpSel.Add_DragDrop($dragDropMan); $lblMap.Add_DragDrop($dragDropMan)  
   
-    $btnStartJob = Maak-Knop "Start Hernoemen" 20 210 620 40 "#27ae60"  
+    $btnStartJob = Maak-Knop "Start hernoemen" 20 210 620 40 "#27ae60"  
     $btnStartJob.Visible=$false  
     $btnStartJob.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Left  
     $pnlCtrl.Controls.Add($btnStartJob)  
@@ -423,46 +445,73 @@ function Start-ManualRename {
     $btnSkip = Maak-Knop "Overslaan" 190 500 120 45 "#2c3e50"; $grpEdit.Controls.Add($btnSkip)  
     $btnNext = Maak-Knop "Hernoem en volgende >" 340 500 210 45 "#27ae60";   
     $grpEdit.Controls.Add($btnNext)  
-  
+
+    $UpdateBackButtonVisibility = {  
+        $idxValue = if ($null -ne $script:ManIdx) { $script:ManIdx } else { 0 }  
+        $btnBack.Visible = ($idxValue -gt 0) -or $script:HasEdited  
+    }  
+    
     $pdf = New-Object System.Windows.Forms.WebBrowser; $pdf.Dock="Fill"; $pnlView.Controls.Add($pdf)  
     $img = New-Object System.Windows.Forms.PictureBox; $img.Dock="Fill"; $img.SizeMode="Zoom"; $pnlView.Controls.Add($img)  
   
     $formMan.Add_FormClosed({ if ($pdf -ne $null) { $pdf.Dispose() } })  
   
     # -- LIVE PREVIEW LOGICA --  
-    $UpdatePreview = {  
-        $raw = $txtD.Text -replace "\D", ""  
-        $bronTrimmed = $txtB.Text.Trim()  
-        $titelTrimmed = $txtT.Text.Trim()  
-        $currentFile = if ($script:ManFiles -and $script:ManIdx -ge 0 -and $script:ManIdx -lt $script:ManFiles.Count) { $script:ManFiles[$script:ManIdx] } else { $null }  
-        $hasInput = ($raw.Length -gt 0) -or (-not [string]::IsNullOrWhiteSpace($bronTrimmed)) -or (-not [string]::IsNullOrWhiteSpace($titelTrimmed))  
-        if (-not $hasInput -and $currentFile) {  
-            $lblLivePreview.Text = "Preview: $($currentFile.Name)"  
-            return  
-        }  
-        if ($raw.Length -eq 0) {  
-            $dStr = "Datum"  
-        } else {  
+    $BuildManualName = {  
+        param($file,$raw,$bronText,$titelText)  
+        $parts = @()  
+        $dateStr = $null  
+        if ($raw.Length -gt 0) {  
             $pad = $raw.PadRight(8, "0")  
             $dd   = $pad.Substring(0, 2); $mm = $pad.Substring(2, 2); $yyyy = $pad.Substring(4, 4)  
-            $dStr = "$yyyy$mm$dd"  
+            $dateStr = "$yyyy$mm$dd"  
+            $parts += $dateStr  
         }  
-        $sBron = $bronTrimmed -replace '[\\/:*?"<>|]', ''  
-        $sTitel = $titelTrimmed -replace '[\\/:*?"<>|]', ''  
-        if ($sBron -eq "") { $sBron = "Bron" }  
-        if ($sTitel -eq "") { $sTitel = "Titel" }  
-        $ext = if ($currentFile) { $currentFile.Extension } else { ".pdf" }  
-        $lblLivePreview.Text = "Preview: ${dStr}_${sBron}_${sTitel}${ext}"  
+        $safeBron = $bronText.Trim() -replace '[\\/:*?"<>|]', ''  
+        if ($safeBron) { $parts += $safeBron }  
+        $safeTitel = $titelText.Trim() -replace '[\\/:*?"<>|]', ''  
+        if ($safeTitel) { $parts += $safeTitel }  
+        $ext = if ($file) { $file.Extension } else { ".pdf" }  
+        $name = if ($parts.Count -gt 0) { ($parts -join "_") + $ext } else { $null }  
+        return [PSCustomObject]@{ Name = $name; Parts = $parts; Extension = $ext; DateString = $dateStr; SafeBron = $safeBron; SafeTitel = $safeTitel }  
+    }  
+  
+    $UpdatePreview = {  
+        $raw = $txtD.Text -replace "\D", ""  
+        $bronTrimmed = $txtB.Text  
+        $titelTrimmed = $txtT.Text  
+        $currentFile = if ($script:ManFiles -and $script:ManIdx -ge 0 -and $script:ManIdx -lt $script:ManFiles.Count) { $script:ManFiles[$script:ManIdx] } else { $null }  
+        $nameInfo = & $BuildManualName $currentFile $raw $bronTrimmed $titelTrimmed  
+        if (-not $nameInfo.Name) {  
+            if ($currentFile) {  
+                $lblLivePreview.Text = "Preview: $($currentFile.Name)"  
+            } else {  
+                $lblLivePreview.Text = "Preview: ..."  
+            }  
+            return  
+        }  
+        $lblLivePreview.Text = "Preview: $($nameInfo.Name)"  
     }  
   
     $script:JumpToNext = { param($sender)  
         $formMan.SelectNextControl($sender, $true, $true, $true, $true)   
     }  
       
+    $GetManualFiles = {  
+        param($path)  
+        if (-not $path -or -not (Test-Path $path)) { return @() }  
+        return Get-ChildItem $path -File -Recurse:$chkRecurse.Checked | Where-Object {".pdf",".jpg",".png" -contains $_.Extension.ToLower()}  
+    }  
+  
     $UpdateCount = {  
         if ($script:ManMap -and (Test-Path $script:ManMap)) {  
-            $c = (Get-ChildItem $script:ManMap -File -Recurse:$chkRecurse.Checked | Where-Object {".pdf",".jpg",".png" -contains $_.Extension.ToLower()}).Count  
-            $lblCount.Text = "$c bestanden gevonden."  
+            $files = & $GetManualFiles $script:ManMap  
+            $lblCount.Text = "$($files.Count) bestanden gevonden."  
+            $btnStartJob.Visible = $true  
+            if ($files.Count -gt 0) { Style-EnabledButton $btnStartJob "#27ae60" } else { Style-DisabledButton $btnStartJob }  
+        } else {  
+            $lblCount.Text = ""  
+            $btnStartJob.Visible = $false  
         }  
     }  
   
@@ -477,13 +526,14 @@ function Start-ManualRename {
   
     $btnKies.Add_Click({   
         $fb = New-Object System.Windows.Forms.FolderBrowserDialog; if($fb.ShowDialog() -eq "OK"){   
-            $script:ManMap=$fb.SelectedPath; $lblMap.Text=$script:ManMap; $btnStartJob.Visible=$true; & $UpdateCount  
+            $script:ManMap=$fb.SelectedPath; $lblMap.Text=$script:ManMap; & $UpdateCount  
         }   
     })  
     $chkRecurse.Add_CheckedChanged({ & $UpdateCount })  
   
     $btnStartJob.Add_Click({  
-        $script:ManFiles = Get-ChildItem $script:ManMap -File -Recurse:$chkRecurse.Checked | Where-Object {".pdf",".jpg",".png" -contains $_.Extension.ToLower()}  
+        $script:ManFiles = & $GetManualFiles $script:ManMap  
+        if ($script:ManFiles.Count -eq 0) { [Windows.Forms.MessageBox]::Show("Geen bestanden!") | Out-Null; return }  
         $script:OriginalPaths = $script:ManFiles | ForEach-Object { $_.FullName }  
         $script:ManIdx = 0; $script:HasEdited = $false; $btnBack.Visible=$false  
         $grpEdit.Location = New-Object System.Drawing.Point(20,220)  
@@ -494,6 +544,7 @@ function Start-ManualRename {
         if ($null -eq $script:ManFiles -or $script:ManFiles.Count -eq 0) { [Windows.Forms.MessageBox]::Show("Geen bestanden!"); return }  
         $f = $script:ManFiles[$script:ManIdx]; $lblFile.Text = $f.Name; $pdf.Visible=$false; $img.Visible=$false  
         $lblFileCount.Text = "Bestand {0} van {1}." -f ($script:ManIdx + 1), $script:ManFiles.Count  
+        & $UpdateBackButtonVisibility  
           
         if (-not (Test-Path $f.FullName)) { $lblFile.Text = "Bestand niet gevonden: $($f.Name)"; return }  
   
@@ -527,9 +578,9 @@ function Start-ManualRename {
             )  
             if ($confirm -eq [System.Windows.Forms.DialogResult]::No) { return }  
         }  
-        if ($raw.Length -eq 0) { $dateStr = "Datum" } else { $pad = $raw.PadRight(8, "0"); $dd = $pad.Substring(0, 2); $mm = $pad.Substring(2, 2); $yyyy = $pad.Substring(4, 4); $dateStr = "$yyyy$mm$dd" }  
-        $safeBron = $bronRaw -replace '[\\/:*?"<>|]', ''; $safeTitel = $titelRaw -replace '[\\/:*?"<>|]', ''  
-        $newName = "${dateStr}_${safeBron}_${safeTitel}$($f.Extension)"; $target = Join-Path $f.DirectoryName $newName  
+        $nameInfo = & $BuildManualName $f $raw $bronRaw $titelRaw  
+        if (-not $nameInfo.Name) { Ga-VolgendeBestand; return }  
+        $newName = $nameInfo.Name; $target = Join-Path $f.DirectoryName $newName  
           
         if ($f.FullName -ne $target) {   
             $pdf.Navigate("about:blank"); while($pdf.ReadyState -ne "Complete") { [System.Windows.Forms.Application]::DoEvents() }; [System.GC]::Collect(); [System.GC]::WaitForPendingFinalizers(); Start-Sleep -m 100  
