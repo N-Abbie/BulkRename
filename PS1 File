@@ -48,6 +48,7 @@ $EnsureValidFileName = {
     param([string]$name)  
     if ([string]::IsNullOrWhiteSpace($name)) { return "" }  
     $clean = $name -replace "[\r\n\t]", ""  
+    $clean = -join ($clean.ToCharArray() | Where-Object { -not [char]::IsControl($_) })  
     $invalidChars = ([System.IO.Path]::GetInvalidFileNameChars() + [System.IO.Path]::GetInvalidPathChars()) | Select-Object -Unique  
     $pattern = "[{0}]" -f [Regex]::Escape(-join $invalidChars)  
     $clean = [Regex]::Replace($clean, $pattern, "-")  
@@ -302,20 +303,29 @@ function Start-AutoRename ($startState, $startBounds) {
         $progress.Minimum = 0; $progress.Maximum = $items.Count; $progress.Value = 0
         foreach($r in $items){
             if($script:Annuleren){ Log-Kleur $rtbLog "Controle geannuleerd." "Orange"; break }
-            $pOud = Join-Path $script:GekozenMap $r.Oud; $pNieuw = Join-Path $script:GekozenMap $r.Nieuw
+            $oudNaam = if($r.Oud){ $r.Oud.Trim() } else { "" }
+            $nieuwNaam = & $EnsureValidFileName $r.Nieuw
+            $pOud = Join-Path $script:GekozenMap $oudNaam; $pNieuw = Join-Path $script:GekozenMap $nieuwNaam
             $status = ""
-            if(Test-Path $pOud){
+            $padOngeldig = $false
+            try { $null = [System.IO.Path]::GetFullPath($pOud) } catch { $padOngeldig = $true }
+            if (-not $padOngeldig) {
+                try { $null = [System.IO.Path]::GetFullPath($pNieuw) } catch { $padOngeldig = $true }
+            }
+            if ($padOngeldig -or -not $nieuwNaam) {
+                $status = "Fout"; Log-Kleur $rtbLog "[FOUT] Ongeldige padtekens voor $($r.Oud)" "Red"
+            } elseif(Test-Path $pOud){
                 if ($pOud -ceq $pNieuw) {
                     $status = "Ongewijzigd"; Log-Kleur $rtbLog "[SKIP] $($r.Oud) ongewijzigd" "Gray"
                 } elseif ($pOud -eq $pNieuw) {
                     $status = "OK"; Log-Kleur $rtbLog "[OK] $($r.Oud) alleen hoofdletterwijziging" "Green"
                 } elseif (Test-Path $pNieuw) {
-                    $status = "Conflict"; Log-Kleur $rtbLog "[SKIP] $($r.Oud) conflict: $($r.Nieuw) bestaat al" "Orange"
+                    $status = "Conflict"; Log-Kleur $rtbLog "[SKIP] $($r.Oud) conflict: $nieuwNaam bestaat al" "Orange"
                 } else {
                     $status = "OK"; Log-Kleur $rtbLog "[OK] $($r.Oud) klaar voor hernoemen" "Green"
                 }
             } else { $status = "Niet gevonden"; Log-Kleur $rtbLog "[MIS] $($r.Oud) niet gevonden" "Red" }
-            $idx = $gridPreview.Rows.Add($r.Oud, $r.Nieuw, $status)
+            $idx = $gridPreview.Rows.Add($oudNaam, $nieuwNaam, $status)
             Set-StatusStyle $gridPreview.Rows[$idx] $status
             $progress.Value = [Math]::Min($progress.Maximum, $progress.Value + 1)
             [System.Windows.Forms.Application]::DoEvents()
@@ -330,7 +340,11 @@ function Start-AutoRename ($startState, $startBounds) {
         $okRows = $gridPreview.Rows | Where-Object { $_.Cells[2].Value -eq "OK" }
         if($okRows.Count -eq 0){ [Windows.Forms.MessageBox]::Show("Geen items met status OK om uit te voeren."); return }
 
-        $normalizePath = { param($pad) if (-not $pad) { return $pad }; [System.IO.Path]::GetFullPath($pad) }
+        $normalizePath = { 
+            param($pad) 
+            if (-not $pad) { return $pad } 
+            try { return [System.IO.Path]::GetFullPath($pad) } catch { return $null } 
+        }
         $toLongPath = {
             param($pad)
             $full = &$normalizePath $pad
@@ -356,6 +370,7 @@ function Start-AutoRename ($startState, $startBounds) {
                 return
             } catch { }
             $src = &$toLongPath $bron; $dst = &$toLongPath $bestemming
+            if (-not $src -or -not $dst) { throw (New-Object System.ArgumentException("Ongeldig bron- of doelpad.")) }
             $item = Get-Item -LiteralPath $src -ErrorAction Stop
             if ($item.PSIsContainer) { [System.IO.Directory]::Move($src, $dst) } else { [System.IO.File]::Move($src, $dst) }
         }
@@ -372,7 +387,16 @@ function Start-AutoRename ($startState, $startBounds) {
             }
             $row.Cells[1].Value = $nieuw
             $pOud = Join-Path $script:GekozenMap $oud; $pNieuw = Join-Path $script:GekozenMap $nieuw
-            $len = ([System.IO.Path]::GetFullPath($pNieuw)).Length
+            $pOudFull = &$normalizePath $pOud; $pNieuwFull = &$normalizePath $pNieuw
+            if (-not $pOudFull) {
+                $row.Cells[2].Value = "Fout"; Set-StatusStyle $row "Fout"; Log-Kleur $rtbLog "[FOUT] Ongeldig bronpad: $oud" "Red"
+                continue
+            }
+            if (-not $pNieuwFull) {
+                $row.Cells[2].Value = "Fout"; Set-StatusStyle $row "Fout"; Log-Kleur $rtbLog "[FOUT] Doelpad bevat ongeldige tekens voor $oud" "Red"
+                continue
+            }
+            $len = $pNieuwFull.Length
             if((&$pathExists $pOud)){
                 $isCaseOnlyChange = ($pOud -ieq $pNieuw) -and -not ($pOud -ceq $pNieuw)
                 if ($len -gt 32000) {
