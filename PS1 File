@@ -527,10 +527,24 @@ function Start-ManualRename {
         }  
     }  
     
-    $pdf = New-Object System.Windows.Forms.WebBrowser; $pdf.Dock="Fill"; $pnlView.Controls.Add($pdf)  
-    $img = New-Object System.Windows.Forms.PictureBox; $img.Dock="Fill"; $img.SizeMode="Zoom"; $pnlView.Controls.Add($img)  
+    $pnlPreviewHost = New-Object System.Windows.Forms.Panel; $pnlPreviewHost.Dock="Fill"; $pnlView.Controls.Add($pnlPreviewHost)  
+    $pnlViewFooter = New-Object System.Windows.Forms.Panel; $pnlViewFooter.Dock="Bottom"; $pnlViewFooter.Height=120; $pnlViewFooter.Padding=New-Object System.Windows.Forms.Padding(10); $pnlViewFooter.Visible=$false; $pnlView.Controls.Add($pnlViewFooter)  
+    $btnOpenExtern = Maak-Knop "📂 Open Bestand" 10 10 200 35 "#000632"; $btnOpenExtern.Visible=$false; $pnlViewFooter.Controls.Add($btnOpenExtern)  
+    $lblNoPreview = New-Object System.Windows.Forms.Label;   
+    $lblNoPreview.Text = "Geen voorbeeldweergave beschikbaar voor dit bestandstype.`nGebruik de knop 'Open Bestand' om de inhoud te bekijken."  
+    $lblNoPreview.Location = New-Object System.Drawing.Point(10,55);  
+    $lblNoPreview.Size = New-Object System.Drawing.Size(560,50);  
+    $lblNoPreview.Font = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Italic)  
+    $lblNoPreview.Visible = $false  
+    $pnlViewFooter.Controls.Add($lblNoPreview)  
   
-    $formMan.Add_FormClosed({ if ($pdf -ne $null) { $pdf.Dispose() } })  
+    $pdf = New-Object System.Windows.Forms.WebBrowser; $pdf.Dock="Fill"; $pnlPreviewHost.Controls.Add($pdf)  
+    $img = New-Object System.Windows.Forms.PictureBox; $img.Dock="Fill"; $img.SizeMode="Zoom"; $pnlPreviewHost.Controls.Add($img)  
+  
+    $formMan.Add_FormClosed({   
+        if ($pdf -ne $null) { $pdf.Dispose() }  
+        if ($img -ne $null -and $img.Image) { $img.Image.Dispose() }  
+    })  
   
     # -- LIVE PREVIEW LOGICA --  
     $BuildManualName = {  
@@ -576,7 +590,7 @@ function Start-ManualRename {
     $GetManualFiles = {  
         param($path)  
         if (-not $path -or -not (Test-Path $path)) { return @() }  
-        return Get-ChildItem $path -File -Recurse:$chkRecurse.Checked | Where-Object {".pdf",".jpg",".png" -contains $_.Extension.ToLower()}  
+        return Get-ChildItem $path -File -Recurse:$chkRecurse.Checked  
     }  
   
     $UpdateCount = {  
@@ -617,9 +631,16 @@ function Start-ManualRename {
         $grpEdit.Visible=$true; $btnStartJob.Visible=$false; Laad-Bestand  
     })  
   
+    $imageExtensions = @(".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tif", ".tiff")  
+    $ResetImageState = {  
+        if ($img.Image) { $img.Image.Dispose() }  
+        $img.Image = $null  
+        $img.ImageLocation = $null  
+    }  
+  
     function Laad-Bestand {  
         if ($null -eq $script:ManFiles -or $script:ManFiles.Count -eq 0) { [Windows.Forms.MessageBox]::Show("Geen bestanden!"); return }  
-        $f = $script:ManFiles[$script:ManIdx]; $lblFile.Text = $f.Name; $pdf.Visible=$false; $img.Visible=$false  
+        $f = $script:ManFiles[$script:ManIdx]; $lblFile.Text = $f.Name; $pdf.Visible=$false; $img.Visible=$false; $lblNoPreview.Visible=$false; $btnOpenExtern.Visible=$false; $pnlViewFooter.Visible=$false; &$ResetImageState  
         $lblFileCount.Text = "Bestand {0} van {1}." -f ($script:ManIdx + 1), $script:ManFiles.Count  
         & $UpdateBackButtonVisibility  
           
@@ -627,9 +648,36 @@ function Start-ManualRename {
   
         $txtD.Clear(); $txtB.Clear(); $txtT.Clear(); & $UpdatePreview  
   
-        if($f.Extension -eq ".pdf"){ $pdf.Navigate([Uri]$f.FullName); $pdf.Visible=$true; if ($img.Image) { $img.Image.Dispose() }; $img.Image = $null; $img.ImageLocation = $null } else { $img.Visible=$true; $img.ImageLocation=$f.FullName }  
+        $ext = $f.Extension.ToLower()  
+        if($ext -eq ".pdf"){   
+            $pdf.Navigate([Uri]$f.FullName);   
+            $pdf.Visible=$true  
+        } elseif ($imageExtensions -contains $ext) {   
+            $img.SizeMode="Zoom"  
+            $img.ImageLocation=$f.FullName  
+            $img.Visible=$true  
+        } else {   
+            $iconBitmap = $null  
+            try {  
+                $icon = [System.Drawing.Icon]::ExtractAssociatedIcon($f.FullName)  
+                if ($icon) { $iconBitmap = $icon.ToBitmap(); $icon.Dispose() }  
+            } catch { }  
+            if ($iconBitmap) { $img.Image = $iconBitmap }  
+            $img.SizeMode="CenterImage"  
+            $img.Visible=$true  
+            $lblNoPreview.Visible=$true  
+            $btnOpenExtern.Visible=$true  
+            $pnlViewFooter.Visible=$true  
+        }  
         [System.Windows.Forms.Application]::DoEvents(); $formMan.ActiveControl = $null; $formMan.ActiveControl = $txtD; $txtD.Select(); $txtD.Focus()  
     }  
+  
+    $btnOpenExtern.Add_Click({  
+        if ($script:ManFiles -and $script:ManIdx -ge 0 -and $script:ManIdx -lt $script:ManFiles.Count) {  
+            $currentFile = $script:ManFiles[$script:ManIdx]  
+            if ($currentFile -and (Test-Path $currentFile.FullName)) { Invoke-Item -LiteralPath $currentFile.FullName }  
+        }  
+    })  
   
     function Ga-VolgendeBestand {  
         $script:ManIdx++  
