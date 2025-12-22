@@ -266,9 +266,15 @@ function Start-AutoRename ($startState, $startBounds) {
             $pOud = Join-Path $script:GekozenMap $r.Oud; $pNieuw = Join-Path $script:GekozenMap $r.Nieuw
             $status = ""
             if(Test-Path $pOud){
-                if ($pOud -eq $pNieuw) { $status = "Ongewijzigd"; Log-Kleur $rtbLog "[SKIP] $($r.Oud) ongewijzigd" "Gray" }
-                elseif (Test-Path $pNieuw) { $status = "Conflict"; Log-Kleur $rtbLog "[SKIP] $($r.Oud) conflict: $($r.Nieuw) bestaat al" "Orange" }
-                else { $status = "OK"; Log-Kleur $rtbLog "[OK] $($r.Oud) klaar voor hernoemen" "Green" }
+                if ($pOud -ceq $pNieuw) {
+                    $status = "Ongewijzigd"; Log-Kleur $rtbLog "[SKIP] $($r.Oud) ongewijzigd" "Gray"
+                } elseif ($pOud -eq $pNieuw) {
+                    $status = "OK"; Log-Kleur $rtbLog "[OK] $($r.Oud) alleen hoofdletterwijziging" "Green"
+                } elseif (Test-Path $pNieuw) {
+                    $status = "Conflict"; Log-Kleur $rtbLog "[SKIP] $($r.Oud) conflict: $($r.Nieuw) bestaat al" "Orange"
+                } else {
+                    $status = "OK"; Log-Kleur $rtbLog "[OK] $($r.Oud) klaar voor hernoemen" "Green"
+                }
             } else { $status = "Niet gevonden"; Log-Kleur $rtbLog "[MIS] $($r.Oud) niet gevonden" "Red" }
             $idx = $gridPreview.Rows.Add($r.Oud, $r.Nieuw, $status)
             Set-StatusStyle $gridPreview.Rows[$idx] $status
@@ -300,9 +306,7 @@ function Start-AutoRename ($startState, $startBounds) {
             $pOud = Join-Path $script:GekozenMap $oud; $pNieuw = Join-Path $script:GekozenMap $nieuw
             $len = $pNieuw.Length
             if(Test-Path $pOud){
-                $caseInsensitiveEqual = [string]::Equals($oud, $nieuw, [System.StringComparison]::OrdinalIgnoreCase)
-                $caseSensitiveEqual = [string]::Equals($oud, $nieuw, [System.StringComparison]::Ordinal)
-                $isCaseOnlyChange = $caseInsensitiveEqual -and -not $caseSensitiveEqual
+                $isCaseOnlyChange = ($pOud -ieq $pNieuw) -and -not ($pOud -ceq $pNieuw)
                 if ($len -gt 255) {
                     $row.Cells[2].Value = "Te lang"; Set-StatusStyle $row "Te lang"; Log-Kleur $rtbLog "[FOUT] Pad te lang ($len tekens): $oud" "Red"
                 } elseif (Test-Path $pNieuw -and -not $isCaseOnlyChange){
@@ -327,7 +331,7 @@ function Start-AutoRename ($startState, $startBounds) {
                         Log-Kleur $rtbLog "[OK] $oud -> $(Split-Path $pNieuw -Leaf)" "Green"
                     } catch [System.IO.IOException] {
                         $row.Cells[2].Value = "In gebruik"; Set-StatusStyle $row "In gebruik"
-                        Log-Kleur $rtbLog "[FOUT] Bestand in gebruik: $oud" "Red"
+                        Log-Kleur $rtbLog "[FOUT] Bestand in gebruik: $oud" "Orange"
                     } catch {
                         if($pTemp -and (Test-Path $pTemp) -and -not (Test-Path $pOud)){
                             Move-Item $pTemp $pOud -ErrorAction SilentlyContinue
