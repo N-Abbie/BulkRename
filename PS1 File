@@ -18,12 +18,10 @@ $script:GaTerugNaarMenu = $false
 $script:ActiveNeutralColor = "#000632"  
 $script:DisabledButtonColor = [System.Drawing.Color]::Gray  
 
+$script:CustomIconBase64 = "PLAK HIER BASE64"
+
 function Get-CustomIcon {
-    $script:CustomIconBase64 = "PLAK HIER BASE64"
-  
-function Get-CustomIcon {  
-    if ([string]::IsNullOrWhiteSpace($script:CustomIconBase64) -or $script:CustomIconBase64 -like "PLAK HIER BASE64"  
-    if (-not $script:CustomIconBase64 -or $script:CustomIconBase64 -eq "*") { return $null }
+    if ([string]::IsNullOrWhiteSpace($script:CustomIconBase64) -or $script:CustomIconBase64 -like "*PLAK HIER BASE64*") { return $null }
     $memoryStream = $null  
     try {  
         $bytes = [System.Convert]::FromBase64String($script:CustomIconBase64)  
