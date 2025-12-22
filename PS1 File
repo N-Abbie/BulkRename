@@ -110,11 +110,12 @@ function Start-AutoRename ($startState, $startBounds) {
     $lblTitel.Font = New-Object System.Drawing.Font("Segoe UI", 18, [System.Drawing.FontStyle]::Bold)
     $lblTitel.Location = New-Object System.Drawing.Point(0, 50); $lblTitel.Size = New-Object System.Drawing.Size(800, 40); $lblTitel.TextAlign = "MiddleCenter"; $mainPanel.Controls.Add($lblTitel)
 
-    $grpStap1 = New-Object System.Windows.Forms.GroupBox; $grpStap1.Text = "Stap 1: Map"; $grpStap1.Location = New-Object System.Drawing.Point(20, 110); $grpStap1.Size = New-Object System.Drawing.Size(760, 100); $mainPanel.Controls.Add($grpStap1)
+    $grpStap1 = New-Object System.Windows.Forms.GroupBox; $grpStap1.Text = "Stap 1: Map"; $grpStap1.Location = New-Object System.Drawing.Point(20, 110); $grpStap1.Size = New-Object System.Drawing.Size(760, 130); $mainPanel.Controls.Add($grpStap1)
     $btnMap = Maak-Knop "Kies map..." 20 30 150 30 "#2c3e50"; $grpStap1.Controls.Add($btnMap)
     $chkRecurse = New-Object System.Windows.Forms.CheckBox; $chkRecurse.Text = "Inclusief submappen"; $chkRecurse.Location = New-Object System.Drawing.Point(20, 70); $chkRecurse.Size = New-Object System.Drawing.Size(200, 20); $grpStap1.Controls.Add($chkRecurse)
     $lblMap = New-Object System.Windows.Forms.Label; $lblMap.Text = "Selecteer de map met te wijzigen documenten (of sleep map hierheen)"; $lblMap.Location = New-Object System.Drawing.Point(180, 35); $lblMap.Size = New-Object System.Drawing.Size(550, 40); $grpStap1.Controls.Add($lblMap)
-    $btnMap.Add_Click({ $fb = New-Object System.Windows.Forms.FolderBrowserDialog; if ($fb.ShowDialog() -eq "OK") { $script:GekozenMap = $fb.SelectedPath; $lblMap.Text = $script:GekozenMap } })
+    $lblCountAuto = New-Object System.Windows.Forms.Label; $lblCountAuto.Text = ""; $lblCountAuto.Location = New-Object System.Drawing.Point(20, 95); $lblCountAuto.Size = New-Object System.Drawing.Size(550, 20); $lblCountAuto.Name="lblCount"; $grpStap1.Controls.Add($lblCountAuto)
+    $btnMap.Add_Click({ $fb = New-Object System.Windows.Forms.FolderBrowserDialog; if ($fb.ShowDialog() -eq "OK") { $script:GekozenMap = $fb.SelectedPath; $lblMap.Text = $script:GekozenMap; & $UpdateAutoCount } })
     $grpStap1.AllowDrop = $true; $lblMap.AllowDrop = $true
     $dragEnterHandler = {
         param($s,$e)
@@ -129,10 +130,26 @@ function Start-AutoRename ($startState, $startBounds) {
             $attribs = Get-Item $pad
             if ($attribs.PSIsContainer) { $script:GekozenMap = $attribs.FullName } else { $script:GekozenMap = $attribs.DirectoryName }
             $lblMap.Text = $script:GekozenMap
+            & $UpdateAutoCount
         }
     }
     $grpStap1.Add_DragEnter($dragEnterHandler); $lblMap.Add_DragEnter($dragEnterHandler)
     $grpStap1.Add_DragDrop($dragDropHandler); $lblMap.Add_DragDrop($dragDropHandler)
+
+    $GetAutoFiles = {
+        param($path)
+        if (-not $path -or -not (Test-Path $path)) { return @() }
+        return Get-ChildItem $path -File -Recurse:$chkRecurse.Checked
+    }
+    $UpdateAutoCount = {
+        if ($script:GekozenMap -and (Test-Path $script:GekozenMap)) {
+            $files = & $GetAutoFiles $script:GekozenMap
+            $lblCountAuto.Text = "$($files.Count) bestanden gevonden."
+        } else {
+            $lblCountAuto.Text = ""
+        }
+    }
+    $chkRecurse.Add_CheckedChanged({ & $UpdateAutoCount })
 
     $grpStap2 = New-Object System.Windows.Forms.GroupBox; $grpStap2.Text = "Stap 2: Lijst (Excel/CSV/Klembord)"; $grpStap2.Location = New-Object System.Drawing.Point(20, 220); $grpStap2.Size = New-Object System.Drawing.Size(760, 80); $mainPanel.Controls.Add($grpStap2)
     $btnLijst = Maak-Knop "Kies bestand" 20 30 150 30 "#2c3e50"; $grpStap2.Controls.Add($btnLijst)
@@ -309,6 +326,7 @@ function Start-AutoRename ($startState, $startBounds) {
 function Start-ManualRename {  
     $script:GaTerugNaarMenu = $false  
     $script:HasEdited = $false  
+    $script:ManualChanges = @()  
     $formMan = New-Object System.Windows.Forms.Form  
     $formMan.Text = "Rename Tool - Interactive Renamer"  
     $formMan.WindowState = "Maximized"  
@@ -338,23 +356,23 @@ function Start-ManualRename {
   
     # -- KIES MAP SECTIE --  
     $grpSel = New-Object System.Windows.Forms.GroupBox; $grpSel.Text="1. Kies Map"  
-    $grpSel.Location=New-Object System.Drawing.Point(20,60); $grpSel.Size=New-Object System.Drawing.Size(620,140)   
+    $grpSel.Location=New-Object System.Drawing.Point(20,60); $grpSel.Size=New-Object System.Drawing.Size(620,130)   
     $grpSel.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Left  
     $pnlCtrl.Controls.Add($grpSel)  
   
-    $btnKies = Maak-Knop "Kies map..." 20 30 120 30 "#2c3e50"; $grpSel.Controls.Add($btnKies)  
+    $btnKies = Maak-Knop "Kies map..." 20 30 150 30 "#2c3e50"; $grpSel.Controls.Add($btnKies)  
       
     $chkRecurse = New-Object System.Windows.Forms.CheckBox  
     $chkRecurse.Text="Inclusief submappen"   
-    $chkRecurse.Location=New-Object System.Drawing.Point(130,35)  
-    $chkRecurse.Size=New-Object System.Drawing.Size(150,20)  
+    $chkRecurse.Location=New-Object System.Drawing.Point(20,70)  
+    $chkRecurse.Size=New-Object System.Drawing.Size(200,20)  
     $grpSel.Controls.Add($chkRecurse)  
       
-    $lblMap = New-Object System.Windows.Forms.Label; $lblMap.Text="Selecteer de map met te wijzigen documenten (of sleep map hierheen)"; $lblMap.Location=New-Object System.Drawing.Point(20,70); $lblMap.AutoSize=$true; $lblMap.MaximumSize=New-Object System.Drawing.Size(570,0)  
+    $lblMap = New-Object System.Windows.Forms.Label; $lblMap.Text="Selecteer de map met te wijzigen documenten (of sleep map hierheen)"; $lblMap.Location=New-Object System.Drawing.Point(180,35); $lblMap.Size=New-Object System.Drawing.Size(420,40)  
     $lblMap.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Left  
     $grpSel.Controls.Add($lblMap)  
   
-    $lblCount = New-Object System.Windows.Forms.Label; $lblCount.Text=""; $lblCount.Location=New-Object System.Drawing.Point(20,100); $lblCount.Size=New-Object System.Drawing.Size(550,20)  
+    $lblCount = New-Object System.Windows.Forms.Label; $lblCount.Text=""; $lblCount.Location=New-Object System.Drawing.Point(20,95); $lblCount.Size=New-Object System.Drawing.Size(550,20)  
     $lblCount.Name="lblCount"  
     $lblCount.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Left  
     $grpSel.Controls.Add($lblCount)  
@@ -448,7 +466,12 @@ function Start-ManualRename {
 
     $UpdateBackButtonVisibility = {  
         $idxValue = if ($null -ne $script:ManIdx) { $script:ManIdx } else { 0 }  
-        $btnBack.Visible = ($idxValue -gt 0) -or $script:HasEdited  
+        $hasPrevious = $idxValue -gt 0  
+        $hasPreviousChange = $hasPrevious -and ($script:ManualChanges.Count -gt ($idxValue - 1)) -and $script:ManualChanges[$idxValue - 1]  
+        $btnBack.Visible = $hasPrevious -or $script:HasEdited  
+        if ($btnBack.Visible) {  
+            $btnBack.Text = if ($hasPreviousChange) { "Herstel vorige" } else { "Vorige" }  
+        }  
     }  
     
     $pdf = New-Object System.Windows.Forms.WebBrowser; $pdf.Dock="Fill"; $pnlView.Controls.Add($pdf)  
@@ -534,6 +557,7 @@ function Start-ManualRename {
     $btnStartJob.Add_Click({  
         $script:ManFiles = & $GetManualFiles $script:ManMap  
         if ($script:ManFiles.Count -eq 0) { [Windows.Forms.MessageBox]::Show("Geen bestanden!") | Out-Null; return }  
+        $script:ManualChanges = @(for($i=0;$i -lt $script:ManFiles.Count;$i++){ $false })  
         $script:OriginalPaths = $script:ManFiles | ForEach-Object { $_.FullName }  
         $script:ManIdx = 0; $script:HasEdited = $false; $btnBack.Visible=$false  
         $grpEdit.Location = New-Object System.Drawing.Point(20,220)  
@@ -582,15 +606,17 @@ function Start-ManualRename {
         if (-not $nameInfo.Name) { Ga-VolgendeBestand; return }  
         $newName = $nameInfo.Name; $target = Join-Path $f.DirectoryName $newName  
           
-        if ($f.FullName -ne $target) {   
-            $pdf.Navigate("about:blank"); while($pdf.ReadyState -ne "Complete") { [System.Windows.Forms.Application]::DoEvents() }; [System.GC]::Collect(); [System.GC]::WaitForPendingFinalizers(); Start-Sleep -m 100  
-            $maxRetries = 3; $retryCount = 0; $success = $false  
+            if ($f.FullName -ne $target) {   
+                $pdf.Navigate("about:blank"); while($pdf.ReadyState -ne "Complete") { [System.Windows.Forms.Application]::DoEvents() }; [System.GC]::Collect(); [System.GC]::WaitForPendingFinalizers(); Start-Sleep -m 100  
+                $maxRetries = 3; $retryCount = 0; $success = $false  
             while (-not $success -and $retryCount -lt $maxRetries) {  
                 try { Move-Item $f.FullName $target -ErrorAction Stop; $success = $true; $script:ManFiles[$script:ManIdx] = Get-Item $target } catch { $retryCount++; Start-Sleep -m 500 }  
             }  
             if (-not $success) { [Windows.Forms.MessageBox]::Show("Kan bestand niet hernoemen (in gebruik?)."); return }  
             $f = $script:ManFiles[$script:ManIdx]  
-            if (-not $script:HasEdited) { $script:HasEdited = $true; $btnBack.Visible = $true }  
+            if ($script:ManualChanges.Count -gt $script:ManIdx) { $script:ManualChanges[$script:ManIdx] = $true }  
+            $script:HasEdited = $script:ManualChanges -contains $true  
+            & $UpdateBackButtonVisibility  
         }  
         Ga-VolgendeBestand  
     })  
@@ -604,6 +630,8 @@ function Start-ManualRename {
         $targetIdx = $script:ManIdx - 1  
         $origPath = if ($script:OriginalPaths.Count -gt $targetIdx) { $script:OriginalPaths[$targetIdx] } else { $null }  
         $currentFile = if ($script:ManFiles.Count -gt $targetIdx) { $script:ManFiles[$targetIdx] } else { $null }  
+        $shouldRestore = ($script:ManualChanges.Count -gt $targetIdx) -and $script:ManualChanges[$targetIdx]  
+        if (-not $shouldRestore) { $script:ManIdx--; Laad-Bestand; return }  
         if (-not $origPath -or -not $currentFile) { $script:ManIdx--; Laad-Bestand; return }  
         if (Test-Path $currentFile.FullName) {  
             if ($currentFile.FullName -ne $origPath) {  
@@ -614,6 +642,8 @@ function Start-ManualRename {
                 try {  
                     Move-Item $currentFile.FullName $origPath -ErrorAction Stop  
                     $script:ManFiles[$targetIdx] = Get-Item $origPath  
+                    if ($script:ManualChanges.Count -gt $targetIdx) { $script:ManualChanges[$targetIdx] = $false }  
+                    $script:HasEdited = $script:ManualChanges -contains $true  
                 } catch {  
                     [Windows.Forms.MessageBox]::Show("Herstellen van vorige bestand mislukt: $_") | Out-Null  
                     return  
