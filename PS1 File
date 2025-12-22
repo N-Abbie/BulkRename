@@ -291,17 +291,31 @@ function Start-AutoRename ($startState, $startBounds) {
         $okRows = $gridPreview.Rows | Where-Object { $_.Cells[2].Value -eq "OK" }
         if($okRows.Count -eq 0){ [Windows.Forms.MessageBox]::Show("Geen items met status OK om uit te voeren."); return }
 
+        $normalizePath = { param($pad) if (-not $pad) { return $pad }; [System.IO.Path]::GetFullPath($pad) }
         $toLongPath = {
             param($pad)
-            if (-not $pad) { return $pad }
-            $full = [System.IO.Path]::GetFullPath($pad)
+            $full = &$normalizePath $pad
+            if (-not $full) { return $full }
             if ($full -like "\\\\?\\*") { return $full }
             if ($full.StartsWith("\\\\")) { return "\\\\?\\UNC\\" + $full.Substring(2) }
             return "\\\\?\\" + $full
         }
-        $pathExists = { param($pad) Test-Path -LiteralPath (&$toLongPath $pad) }
+        $pathExists = {
+            param($pad)
+            if (-not $pad) { return $false }
+            try {
+                if (Test-Path -LiteralPath $pad) { return $true }
+                $long = &$toLongPath $pad
+                if ($long -and $long -ne $pad) { return Test-Path -LiteralPath $long }
+            } catch { }
+            return $false
+        }
         $movePath = {
             param($bron,$bestemming)
+            try {
+                Move-Item -LiteralPath $bron -Destination $bestemming -ErrorAction Stop
+                return
+            } catch { }
             $src = &$toLongPath $bron; $dst = &$toLongPath $bestemming
             $item = Get-Item -LiteralPath $src -ErrorAction Stop
             if ($item.PSIsContainer) { [System.IO.Directory]::Move($src, $dst) } else { [System.IO.File]::Move($src, $dst) }
