@@ -48,12 +48,12 @@ $EnsureValidFileName = {
     param([string]$name)  
     if ([string]::IsNullOrWhiteSpace($name)) { return "" }  
     $clean = $name -replace "[\r\n\t]", ""  
+    $clean = $clean -replace "\u00A0", " "  # Replace NBSP with normal space  
     $clean = -join ($clean.ToCharArray() | Where-Object { -not [char]::IsControl($_) })  
     $invalidChars = ([System.IO.Path]::GetInvalidFileNameChars() + [System.IO.Path]::GetInvalidPathChars()) | Select-Object -Unique  
     $pattern = "[{0}]" -f [Regex]::Escape(-join $invalidChars)  
     $clean = [Regex]::Replace($clean, $pattern, "-")  
-    $clean = $clean.Trim()  
-    $clean = $clean.TrimEnd(". ")  
+    $clean = $clean.Trim(" .")  
     return $clean  
 }  
   
