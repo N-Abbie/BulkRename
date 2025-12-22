@@ -292,17 +292,36 @@ function Start-AutoRename ($startState, $startBounds) {
             $nieuw = $nieuw -replace "[\r\n\t]", ""
             $nieuw = $nieuw -replace '[\\/:*?\"<>|]', "-"
             $nieuw = $nieuw.Trim()
+            if(-not [System.IO.Path]::HasExtension($nieuw)){
+                $oudExt = [System.IO.Path]::GetExtension($oud)
+                if($oudExt){ $nieuw = "$nieuw$oudExt" }
+            }
             $row.Cells[1].Value = $nieuw
             $pOud = Join-Path $script:GekozenMap $oud; $pNieuw = Join-Path $script:GekozenMap $nieuw
             $len = $pNieuw.Length
             if(Test-Path $pOud){
+                $caseInsensitiveEqual = [string]::Equals($oud, $nieuw, [System.StringComparison]::OrdinalIgnoreCase)
+                $caseSensitiveEqual = [string]::Equals($oud, $nieuw, [System.StringComparison]::Ordinal)
+                $isCaseOnlyChange = $caseInsensitiveEqual -and -not $caseSensitiveEqual
                 if ($len -gt 255) {
                     $row.Cells[2].Value = "Te lang"; Set-StatusStyle $row "Te lang"; Log-Kleur $rtbLog "[FOUT] Pad te lang ($len tekens): $oud" "Red"
-                } elseif (Test-Path $pNieuw){
+                } elseif (Test-Path $pNieuw -and -not $isCaseOnlyChange){
                     $row.Cells[2].Value = "Conflict"; Set-StatusStyle $row "Conflict"; Log-Kleur $rtbLog "[SKIP] $oud conflict tijdens uitvoeren" "Orange"
                 } else {
+                    $pTemp = $null
                     try {
-                        Move-Item $pOud $pNieuw -ErrorAction Stop
+                        if($isCaseOnlyChange){
+                            $tempBase = [System.IO.Path]::GetFileNameWithoutExtension($oud)
+                            $tempExt = [System.IO.Path]::GetExtension($oud)
+                            do {
+                                $tempName = "{0}_TEMP_{1}{2}" -f $tempBase, (Get-Random -Minimum 1000 -Maximum 9999), $tempExt
+                                $pTemp = Join-Path $script:GekozenMap $tempName
+                            } while (Test-Path $pTemp)
+                            Move-Item $pOud $pTemp -ErrorAction Stop
+                            Move-Item $pTemp $pNieuw -ErrorAction Stop
+                        } else {
+                            Move-Item $pOud $pNieuw -ErrorAction Stop
+                        }
                         $row.Cells[2].Value = "Voltooid"; Set-StatusStyle $row "OK"
                         $script:UndoLijst += @{Huidig=$pNieuw; Orig=$pOud}
                         Log-Kleur $rtbLog "[OK] $oud -> $(Split-Path $pNieuw -Leaf)" "Green"
@@ -310,6 +329,9 @@ function Start-AutoRename ($startState, $startBounds) {
                         $row.Cells[2].Value = "In gebruik"; Set-StatusStyle $row "In gebruik"
                         Log-Kleur $rtbLog "[FOUT] Bestand in gebruik: $oud" "Red"
                     } catch {
+                        if($pTemp -and (Test-Path $pTemp) -and -not (Test-Path $pOud)){
+                            Move-Item $pTemp $pOud -ErrorAction SilentlyContinue
+                        }
                         $row.Cells[2].Value = "Fout"; Set-StatusStyle $row "Fout"
                         Log-Kleur $rtbLog "[FOUT] $oud kon niet worden hernoemd: $($_.Exception.Message)" "Red"
                     }
