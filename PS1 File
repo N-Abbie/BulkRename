@@ -18,6 +18,44 @@ $script:GaTerugNaarMenu = $false
 $script:ActiveNeutralColor = "#000632"  
 $script:DisabledButtonColor = [System.Drawing.Color]::Gray  
   
+$script:CustomIconBase64 = "<PLAATS_HIER_JE_BASE64_ICON>"  
+  
+function Get-CustomIcon {  
+    if ([string]::IsNullOrWhiteSpace($script:CustomIconBase64) -or $script:CustomIconBase64 -like "<PLAATS_HIER_JE_BASE64_ICON>*") { return $null }  
+    $memoryStream = $null  
+    try {  
+        $bytes = [System.Convert]::FromBase64String($script:CustomIconBase64)  
+        $memoryStream = New-Object System.IO.MemoryStream($bytes)  
+        return New-Object System.Drawing.Icon($memoryStream)  
+    } catch {  
+        return $null  
+    } finally {  
+        if ($memoryStream) { $memoryStream.Dispose() }  
+    }  
+}  
+  
+function Set-FormIcon {  
+    param($form)  
+    if (-not $form) { return }  
+    $icon = Get-CustomIcon  
+    if ($icon) {  
+        $form.Icon = $icon.Clone()  
+        $icon.Dispose()  
+    }  
+}  
+  
+$EnsureValidFileName = {  
+    param([string]$name)  
+    if ([string]::IsNullOrWhiteSpace($name)) { return "" }  
+    $clean = $name -replace "[\r\n\t]", ""  
+    $invalidChars = ([System.IO.Path]::GetInvalidFileNameChars() + [System.IO.Path]::GetInvalidPathChars()) | Select-Object -Unique  
+    $pattern = "[{0}]" -f [Regex]::Escape(-join $invalidChars)  
+    $clean = [Regex]::Replace($clean, $pattern, "-")  
+    $clean = $clean.Trim()  
+    $clean = $clean.TrimEnd(". ")  
+    return $clean  
+}  
+  
 # Functie om thema (Light) toe te passen  
 function Update-FormsTheme ($form) {  
     if ($null -eq $form) { return }  
@@ -88,6 +126,7 @@ function Start-AutoRename ($startState, $startBounds) {
     $formAuto = New-Object System.Windows.Forms.Form
     $formAuto.Text = "Rename Tool - Batch Renamer"
     $formAuto.WindowState = "Maximized"
+    Set-FormIcon $formAuto
 
     $script:GekozenMap = $null; $script:IngeplakteTekst = $null; $script:UndoLijst = @()
     $script:Annuleren = $false
@@ -326,9 +365,7 @@ function Start-AutoRename ($startState, $startBounds) {
         foreach($row in $okRows){
             if($script:Annuleren){ Log-Kleur $rtbLog "Uitvoering geannuleerd." "Orange"; break }
             $oud = $row.Cells[0].Value; $nieuw = $row.Cells[1].Value
-            $nieuw = $nieuw -replace "[\r\n\t]", ""
-            $nieuw = $nieuw -replace '[\\/:*?\"<>|]', "-"
-            $nieuw = $nieuw.Trim()
+            $nieuw = & $EnsureValidFileName $nieuw
             if(-not [System.IO.Path]::HasExtension($nieuw)){
                 $oudExt = [System.IO.Path]::GetExtension($oud)
                 if($oudExt){ $nieuw = "$nieuw$oudExt" }
@@ -397,6 +434,7 @@ function Start-ManualRename {
     $formMan = New-Object System.Windows.Forms.Form  
     $formMan.Text = "Rename Tool - Interactive Renamer"  
     $formMan.WindowState = "Maximized"  
+    Set-FormIcon $formMan  
     $formMan.KeyPreview = $true   
   
     $split = New-Object System.Windows.Forms.SplitContainer;   
@@ -632,6 +670,7 @@ function Start-ManualRename {
         if ($safeTitel) { $parts += $safeTitel }  
         $ext = if ($file) { $file.Extension } else { ".pdf" }  
         $name = if ($parts.Count -gt 0) { ($parts -join "_") + $ext } else { $null }  
+        if ($name) { $name = & $EnsureValidFileName $name }  
         return [PSCustomObject]@{ Name = $name; Parts = $parts; Extension = $ext; DateString = $dateStr; SafeBron = $safeBron; SafeTitel = $safeTitel }  
     }  
   
@@ -853,6 +892,7 @@ $formMain = New-Object System.Windows.Forms.Form
 $formMain.Text = "Rename Tool"  
 $formMain.WindowState = "Maximized"  
 $formMain.StartPosition = "CenterScreen"  
+Set-FormIcon $formMain  
   
 $pnlMenu = New-Object System.Windows.Forms.Panel; $pnlMenu.Size = New-Object System.Drawing.Size(600, 500); $pnlMenu.Name="pnlMenu"; $formMain.Controls.Add($pnlMenu)  
 $formMain.Add_Resize({   
