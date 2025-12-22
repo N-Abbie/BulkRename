@@ -927,37 +927,44 @@ $formMain.Add_Resize({
   
 $formMain.Add_FormClosed({ [System.Windows.Forms.Application]::Exit() })  
   
-$lblWelcome = New-Object System.Windows.Forms.Label; $lblWelcome.Text = "Welkom terug,";   
-$lblWelcome.Font = New-Object System.Drawing.Font("Segoe UI", 12)  
-$lblWelcome.ForeColor = [System.Drawing.ColorTranslator]::FromHtml("#000632")  
-$lblWelcome.TextAlign = "MiddleCenter"; $lblWelcome.Size = New-Object System.Drawing.Size(600, 30); $lblWelcome.Location = New-Object System.Drawing.Point(0, 20); $pnlMenu.Controls.Add($lblWelcome)  
+$logoIcon = Get-CustomIcon  
+if ($logoIcon) {  
+    $picLogo = New-Object System.Windows.Forms.PictureBox  
+    $picLogo.Size = New-Object System.Drawing.Size(96, 96)  
+    $picLogo.SizeMode = "Zoom"  
+    $picLogo.Image = $logoIcon.ToBitmap()  
+    $picLogo.BackColor = $pnlMenu.BackColor  
+    $picLogo.Location = New-Object System.Drawing.Point([int](($pnlMenu.Width - $picLogo.Width) / 2), 10)  
+    $pnlMenu.Controls.Add($picLogo)  
+    $logoIcon.Dispose()  
+}  
   
 $lblW = New-Object System.Windows.Forms.Label; $lblW.Text="RENAME TOOL";   
 $lblW.Font = New-Object System.Drawing.Font("Segoe UI", 32, [System.Drawing.FontStyle]::Bold)  
 $lblW.ForeColor = [System.Drawing.ColorTranslator]::FromHtml("#000632")  
-$lblW.TextAlign="MiddleCenter"; $lblW.Size= New-Object System.Drawing.Size(600, 70); $lblW.Location= New-Object System.Drawing.Point(0, 55); $pnlMenu.Controls.Add($lblW)  
+$lblW.TextAlign="MiddleCenter"; $lblW.Size= New-Object System.Drawing.Size(600, 70); $lblW.Location= New-Object System.Drawing.Point(0, 120); $pnlMenu.Controls.Add($lblW)  
   
 # NIEUW: Namen en Ondertitels  
-$btnAuto = Maak-Knop "BATCH RENAMER" 100 160 400 80 "#003161"; $pnlMenu.Controls.Add($btnAuto)  
+$btnAuto = Maak-Knop "BATCH RENAMER" 100 200 400 80 "#003161"; $pnlMenu.Controls.Add($btnAuto)  
   
 $lblSub1 = New-Object System.Windows.Forms.Label  
 $lblSub1.Text = "Automatisch hernoemen op basis van een lijst met nieuwe bestandsnamen."  
 $lblSub1.Font = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Italic)  
 $lblSub1.ForeColor = [System.Drawing.Color]::Gray  
 $lblSub1.TextAlign = "TopCenter"  
-$lblSub1.Size = New-Object System.Drawing.Size(400, 40)  
-$lblSub1.Location = New-Object System.Drawing.Point(100, 245)  
+$lblSub1.Size = New-Object System.Drawing.Size(400, 35)  
+$lblSub1.Location = New-Object System.Drawing.Point(100, 295)  
 $pnlMenu.Controls.Add($lblSub1)  
   
-$btnMan = Maak-Knop "INTERACTIVE RENAMER" 100 310 400 80 "#006a67"; $pnlMenu.Controls.Add($btnMan)  
+$btnMan = Maak-Knop "INTERACTIVE RENAMER" 100 340 400 80 "#006a67"; $pnlMenu.Controls.Add($btnMan)  
   
 $lblSub2 = New-Object System.Windows.Forms.Label  
 $lblSub2.Text = "Bestanden visueel doorlopen en direct de juiste naam opstellen."  
 $lblSub2.Font = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Italic)  
 $lblSub2.ForeColor = [System.Drawing.Color]::Gray  
 $lblSub2.TextAlign = "TopCenter"  
-$lblSub2.Size = New-Object System.Drawing.Size(400, 40)  
-$lblSub2.Location = New-Object System.Drawing.Point(100, 395)  
+$lblSub2.Size = New-Object System.Drawing.Size(400, 35)  
+$lblSub2.Location = New-Object System.Drawing.Point(100, 430)  
 $pnlMenu.Controls.Add($lblSub2)  
   
 $lblVersion = New-Object System.Windows.Forms.Label  
