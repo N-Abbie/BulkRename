@@ -665,6 +665,8 @@ function Start-ManualRename {
         if ($img.Image) { $img.Image.Dispose() }  
         $img.Image = $null  
         $img.ImageLocation = $null  
+        if ($imgNoPreview.Image) { $imgNoPreview.Image.Dispose() }  
+        $imgNoPreview.Image = $null  
     }  
   
     function Laad-Bestand {  
@@ -681,10 +683,12 @@ function Start-ManualRename {
         if($ext -eq ".pdf"){   
             $pdf.Navigate([Uri]$f.FullName);   
             $pdf.Visible=$true  
+            $pnlPreviewHost.BringToFront()  
         } elseif ($imageExtensions -contains $ext) {   
             $img.SizeMode="Zoom"  
             $img.ImageLocation=$f.FullName  
             $img.Visible=$true  
+            $pnlPreviewHost.BringToFront()  
         } else {   
             $iconBitmap = $null   
             try {  
@@ -697,6 +701,8 @@ function Start-ManualRename {
             $lblNoPreview.Visible=$true  
             $btnOpenExtern.Visible=$true  
             $pnlViewFooter.Visible=$true  
+            $pnlViewFooter.BringToFront()  
+            $pnlPreviewHost.SendToBack()  
         }  
         [System.Windows.Forms.Application]::DoEvents(); $formMan.ActiveControl = $null; $formMan.ActiveControl = $txtD; $txtD.Select(); $txtD.Focus()  
     }  
