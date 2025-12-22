@@ -443,6 +443,7 @@ function Start-ManualRename {
             if (-not (Test-Path $pad)) { return }  
             $attribs = Get-Item $pad  
             if ($attribs.PSIsContainer) { $script:ManMap = $attribs.FullName } else { $script:ManMap = $attribs.DirectoryName }  
+            & $ResetManualSession  
             $lblMap.Text = $script:ManMap  
             & $UpdateCount  
         }  
@@ -575,6 +576,31 @@ function Start-ManualRename {
         if ($img -ne $null -and $img.Image) { $img.Image.Dispose() }  
     })  
   
+    $ResetManualSession = {  
+        $script:ManFiles = $null  
+        $script:ManualChanges = @()  
+        $script:OriginalPaths = @()  
+        $script:ManIdx = $null  
+        $script:HasEdited = $false  
+        $grpEdit.Visible = $false  
+        $grpEdit.Location = New-Object System.Drawing.Point(20,260)  
+        $btnBack.Visible = $false  
+        $lblFile.Text = ""  
+        $lblFileCount.Text = ""  
+        $txtD.Clear(); $txtB.Clear(); $txtT.Clear()  
+        $lblLivePreview.Text = "Preview: ..."  
+        if ($pdf) { $pdf.Navigate("about:blank"); $pdf.Visible = $false }  
+        if ($img -and $img.Image) { $img.Image.Dispose() }  
+        if ($img) { $img.Image = $null; $img.ImageLocation = $null; $img.Visible = $false }  
+        if ($imgNoPreview -and $imgNoPreview.Image) { $imgNoPreview.Image.Dispose() }  
+        if ($imgNoPreview) { $imgNoPreview.Image = $null; $imgNoPreview.Visible = $false }  
+        if ($lblNoPreview) { $lblNoPreview.Visible = $false }  
+        if ($btnOpenExtern) { $btnOpenExtern.Visible = $false }  
+        if ($pnlViewFooter) { $pnlViewFooter.Visible = $false }  
+        Style-DisabledButton $btnStartJob  
+        $btnStartJob.Visible = $false  
+    }  
+  
     # -- LIVE PREVIEW LOGICA --  
     $BuildManualName = {  
         param($file,$raw,$bronText,$titelText)  
@@ -645,7 +671,7 @@ function Start-ManualRename {
   
     $btnKies.Add_Click({   
         $fb = New-Object System.Windows.Forms.FolderBrowserDialog; if($fb.ShowDialog() -eq "OK"){   
-            $script:ManMap=$fb.SelectedPath; $lblMap.Text=$script:ManMap; & $UpdateCount  
+            $script:ManMap=$fb.SelectedPath; & $ResetManualSession; $lblMap.Text=$script:ManMap; & $UpdateCount  
         }   
     })  
     $chkRecurse.Add_CheckedChanged({ & $UpdateCount })  
