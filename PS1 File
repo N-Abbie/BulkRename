@@ -290,6 +290,23 @@ function Start-AutoRename ($startState, $startBounds) {
         if(-not $script:GekozenMap){ [Windows.Forms.MessageBox]::Show("Kies map!"); return }
         $okRows = $gridPreview.Rows | Where-Object { $_.Cells[2].Value -eq "OK" }
         if($okRows.Count -eq 0){ [Windows.Forms.MessageBox]::Show("Geen items met status OK om uit te voeren."); return }
+
+        $toLongPath = {
+            param($pad)
+            if (-not $pad) { return $pad }
+            $full = [System.IO.Path]::GetFullPath($pad)
+            if ($full -like "\\\\?\\*") { return $full }
+            if ($full.StartsWith("\\\\")) { return "\\\\?\\UNC\\" + $full.Substring(2) }
+            return "\\\\?\\" + $full
+        }
+        $pathExists = { param($pad) Test-Path -LiteralPath (&$toLongPath $pad) }
+        $movePath = {
+            param($bron,$bestemming)
+            $src = &$toLongPath $bron; $dst = &$toLongPath $bestemming
+            $item = Get-Item -LiteralPath $src -ErrorAction Stop
+            if ($item.PSIsContainer) { [System.IO.Directory]::Move($src, $dst) } else { [System.IO.File]::Move($src, $dst) }
+        }
+
         $script:Annuleren = $false; Style-EnabledButton $btnCancel "#e74c3c"; Style-DisabledButton $btnExecute; Style-DisabledButton $btnStart
         $progress.Minimum = 0; $progress.Maximum = $okRows.Count; $progress.Value = 0
         foreach($row in $okRows){
@@ -304,12 +321,12 @@ function Start-AutoRename ($startState, $startBounds) {
             }
             $row.Cells[1].Value = $nieuw
             $pOud = Join-Path $script:GekozenMap $oud; $pNieuw = Join-Path $script:GekozenMap $nieuw
-            $len = $pNieuw.Length
-            if(Test-Path $pOud){
+            $len = ([System.IO.Path]::GetFullPath($pNieuw)).Length
+            if((&$pathExists $pOud)){
                 $isCaseOnlyChange = ($pOud -ieq $pNieuw) -and -not ($pOud -ceq $pNieuw)
-                if ($len -gt 255) {
+                if ($len -gt 32000) {
                     $row.Cells[2].Value = "Te lang"; Set-StatusStyle $row "Te lang"; Log-Kleur $rtbLog "[FOUT] Pad te lang ($len tekens): $oud" "Red"
-                } elseif ((Test-Path -LiteralPath $pNieuw) -and (-not $isCaseOnlyChange)){
+                } elseif ((&$pathExists $pNieuw) -and (-not $isCaseOnlyChange)){
                     $row.Cells[2].Value = "Conflict"; Set-StatusStyle $row "Conflict"; Log-Kleur $rtbLog "[SKIP] $oud conflict tijdens uitvoeren" "Orange"
                 } else {
                     $pTemp = $null
@@ -320,11 +337,11 @@ function Start-AutoRename ($startState, $startBounds) {
                             do {
                                 $tempName = "{0}_TEMP_{1}{2}" -f $tempBase, (Get-Random -Minimum 1000 -Maximum 9999), $tempExt
                                 $pTemp = Join-Path $script:GekozenMap $tempName
-                            } while (Test-Path $pTemp)
-                            Move-Item $pOud $pTemp -ErrorAction Stop
-                            Move-Item $pTemp $pNieuw -ErrorAction Stop
+                            } while (&$pathExists $pTemp)
+                            &$movePath $pOud $pTemp
+                            &$movePath $pTemp $pNieuw
                         } else {
-                            Move-Item $pOud $pNieuw -ErrorAction Stop
+                            &$movePath $pOud $pNieuw
                         }
                         $row.Cells[2].Value = "Voltooid"; Set-StatusStyle $row "OK"
                         $script:UndoLijst += @{Huidig=$pNieuw; Orig=$pOud}
@@ -333,8 +350,8 @@ function Start-AutoRename ($startState, $startBounds) {
                         $row.Cells[2].Value = "In gebruik"; Set-StatusStyle $row "In gebruik"
                         Log-Kleur $rtbLog "[FOUT] Bestand in gebruik: $oud" "Orange"
                     } catch {
-                        if($pTemp -and (Test-Path $pTemp) -and -not (Test-Path $pOud)){
-                            Move-Item $pTemp $pOud -ErrorAction SilentlyContinue
+                        if($pTemp -and (&$pathExists $pTemp) -and -not (&$pathExists $pOud)){
+                            try { &$movePath $pTemp $pOud } catch { }
                         }
                         $row.Cells[2].Value = "Fout"; Set-StatusStyle $row "Fout"
                         Log-Kleur $rtbLog "[FOUT] $oud kon niet worden hernoemd: $($_.Exception.Message)" "Red"
