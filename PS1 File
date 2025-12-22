@@ -309,7 +309,7 @@ function Start-AutoRename ($startState, $startBounds) {
                 $isCaseOnlyChange = ($pOud -ieq $pNieuw) -and -not ($pOud -ceq $pNieuw)
                 if ($len -gt 255) {
                     $row.Cells[2].Value = "Te lang"; Set-StatusStyle $row "Te lang"; Log-Kleur $rtbLog "[FOUT] Pad te lang ($len tekens): $oud" "Red"
-                } elseif (Test-Path $pNieuw -and -not $isCaseOnlyChange){
+                } elseif ((Test-Path -LiteralPath $pNieuw) -and (-not $isCaseOnlyChange)){
                     $row.Cells[2].Value = "Conflict"; Set-StatusStyle $row "Conflict"; Log-Kleur $rtbLog "[SKIP] $oud conflict tijdens uitvoeren" "Orange"
                 } else {
                     $pTemp = $null
