@@ -420,8 +420,8 @@ function Start-ManualRename {
   
     # KNOPPEN  
     $btnBack = Maak-Knop "Herstel vorige" 20 500 150 45 "#e74c3c"; $btnBack.Visible=$false; $grpEdit.Controls.Add($btnBack)  
-    $btnSkip = Maak-Knop "Overslaan" 190 500 120 45 "#2c3e50"; $grpEdit.Controls.Add($btnSkip)  
-    $btnNext = Maak-Knop "Hernoem en volgende >" 330 500 210 45 "#27ae60";   
+    $btnSkip = Maak-Knop "Overslaan" 130 500 100 45 "#2c3e50"; $grpEdit.Controls.Add($btnSkip)  
+    $btnNext = Maak-Knop "Hernoem en volgende >" 280 500 210 45 "#27ae60";   
     $grpEdit.Controls.Add($btnNext)  
   
     $pdf = New-Object System.Windows.Forms.WebBrowser; $pdf.Dock="Fill"; $pnlView.Controls.Add($pdf)  
