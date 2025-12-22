@@ -419,9 +419,9 @@ function Start-ManualRename {
     $pnlPreview.Controls.Add($lblLivePreview)  
   
     # KNOPPEN  
-    $btnBack = Maak-Knop "Vorig" 20 500 100 45 "#e74c3c"; $btnBack.Visible=$false; $grpEdit.Controls.Add($btnBack)  
+    $btnBack = Maak-Knop "Herstel vorige" 20 500 150 45 "#e74c3c"; $btnBack.Visible=$false; $grpEdit.Controls.Add($btnBack)  
     $btnSkip = Maak-Knop "Overslaan" 130 500 100 45 "#2c3e50"; $grpEdit.Controls.Add($btnSkip)  
-    $btnNext = Maak-Knop "Hernoem en volgende >" 240 500 250 45 "#27ae60";   
+    $btnNext = Maak-Knop "Hernoem en volgende >" 280 500 210 45 "#27ae60";   
     $grpEdit.Controls.Add($btnNext)  
   
     $pdf = New-Object System.Windows.Forms.WebBrowser; $pdf.Dock="Fill"; $pnlView.Controls.Add($pdf)  
@@ -484,6 +484,7 @@ function Start-ManualRename {
   
     $btnStartJob.Add_Click({  
         $script:ManFiles = Get-ChildItem $script:ManMap -File -Recurse:$chkRecurse.Checked | Where-Object {".pdf",".jpg",".png" -contains $_.Extension.ToLower()}  
+        $script:OriginalPaths = $script:ManFiles | ForEach-Object { $_.FullName }  
         $script:ManIdx = 0; $script:HasEdited = $false; $btnBack.Visible=$false  
         $grpEdit.Location = New-Object System.Drawing.Point(20,220)  
         $grpEdit.Visible=$true; $btnStartJob.Visible=$false; Laad-Bestand  
@@ -547,7 +548,31 @@ function Start-ManualRename {
         Ga-VolgendeBestand  
     })  
       
-    $btnBack.Add_Click({ if($script:ManIdx -gt 0){ $script:ManIdx--; Laad-Bestand } })  
+    function Herstel-VorigBestand {  
+        if ($script:ManIdx -le 0) { return }  
+        $targetIdx = $script:ManIdx - 1  
+        $origPath = if ($script:OriginalPaths.Count -gt $targetIdx) { $script:OriginalPaths[$targetIdx] } else { $null }  
+        $currentFile = if ($script:ManFiles.Count -gt $targetIdx) { $script:ManFiles[$targetIdx] } else { $null }  
+        if (-not $origPath -or -not $currentFile) { $script:ManIdx--; Laad-Bestand; return }  
+        if (Test-Path $currentFile.FullName) {  
+            if ($currentFile.FullName -ne $origPath) {  
+                if (Test-Path $origPath) {  
+                    [Windows.Forms.MessageBox]::Show("Kan het vorige bestand niet herstellen omdat de originele naam al bestaat.") | Out-Null  
+                    return  
+                }  
+                try {  
+                    Move-Item $currentFile.FullName $origPath -ErrorAction Stop  
+                    $script:ManFiles[$targetIdx] = Get-Item $origPath  
+                } catch {  
+                    [Windows.Forms.MessageBox]::Show("Herstellen van vorige bestand mislukt: $_") | Out-Null  
+                    return  
+                }  
+            }  
+        }  
+        $script:ManIdx--; Laad-Bestand  
+    }  
+  
+    $btnBack.Add_Click({ Herstel-VorigBestand })  
   
     Update-FormsTheme $formMan; $formMan.ShowDialog() | Out-Null  
 }  
