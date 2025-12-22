@@ -92,7 +92,7 @@ function Start-AutoRename ($startState, $startBounds) {
     $script:GekozenMap = $null; $script:IngeplakteTekst = $null; $script:UndoLijst = @()
     $script:Annuleren = $false
     
-    $mainPanel = New-Object System.Windows.Forms.Panel; $mainPanel.Size = New-Object System.Drawing.Size(800, 650); $formAuto.Controls.Add($mainPanel)
+    $mainPanel = New-Object System.Windows.Forms.Panel; $mainPanel.Size = New-Object System.Drawing.Size(800, 820); $formAuto.Controls.Add($mainPanel)
     $formAuto.Add_Resize({
         $x = [int](($formAuto.ClientSize.Width - $mainPanel.Width) / 2)
         $mainPanel.Location = New-Object System.Drawing.Point($x, 0)
@@ -151,18 +151,18 @@ function Start-AutoRename ($startState, $startBounds) {
     }
     $chkRecurse.Add_CheckedChanged({ & $UpdateAutoCount })
 
-    $grpStap2 = New-Object System.Windows.Forms.GroupBox; $grpStap2.Text = "Stap 2: Lijst (Excel/CSV/Klembord)"; $grpStap2.Location = New-Object System.Drawing.Point(20, 220); $grpStap2.Size = New-Object System.Drawing.Size(760, 80); $mainPanel.Controls.Add($grpStap2)
+    $grpStap2 = New-Object System.Windows.Forms.GroupBox; $grpStap2.Text = "Stap 2: Lijst (Excel/CSV/Klembord)"; $grpStap2.Location = New-Object System.Drawing.Point(20, 260); $grpStap2.Size = New-Object System.Drawing.Size(760, 90); $mainPanel.Controls.Add($grpStap2)
     $btnLijst = Maak-Knop "Kies bestand" 20 30 150 30 "#2c3e50"; $grpStap2.Controls.Add($btnLijst)
     $btnPlak = Maak-Knop "Plak Klembord" 180 30 150 30 "#f1c40f"; $grpStap2.Controls.Add($btnPlak)
     $lblLijst = New-Object System.Windows.Forms.Label; $lblLijst.Text = "Geen lijst"; $lblLijst.Location = New-Object System.Drawing.Point(340, 35); $lblLijst.Size = New-Object System.Drawing.Size(400, 20); $grpStap2.Controls.Add($lblLijst)
 
-    $gridPreview = New-Object System.Windows.Forms.DataGridView; $gridPreview.Location = New-Object System.Drawing.Point(20, 320); $gridPreview.Size = New-Object System.Drawing.Size(760, 200); $gridPreview.ReadOnly = $true; $gridPreview.AllowUserToAddRows = $false; $gridPreview.AllowUserToDeleteRows = $false; $gridPreview.SelectionMode = "FullRowSelect"; $gridPreview.AutoSizeColumnsMode = "Fill"; $gridPreview.ColumnHeadersDefaultCellStyle.BackColor = [System.Drawing.ColorTranslator]::FromHtml("#ecf0f1"); $gridPreview.EnableHeadersVisualStyles = $false
+    $gridPreview = New-Object System.Windows.Forms.DataGridView; $gridPreview.Location = New-Object System.Drawing.Point(20, 370); $gridPreview.Size = New-Object System.Drawing.Size(760, 200); $gridPreview.ReadOnly = $true; $gridPreview.AllowUserToAddRows = $false; $gridPreview.AllowUserToDeleteRows = $false; $gridPreview.SelectionMode = "FullRowSelect"; $gridPreview.AutoSizeColumnsMode = "Fill"; $gridPreview.ColumnHeadersDefaultCellStyle.BackColor = [System.Drawing.ColorTranslator]::FromHtml("#ecf0f1"); $gridPreview.EnableHeadersVisualStyles = $false
     [void]$gridPreview.Columns.Add("HuidigeNaam","Huidige naam")
     [void]$gridPreview.Columns.Add("NieuweNaam","Nieuwe naam")
     [void]$gridPreview.Columns.Add("Status","Status")
     $mainPanel.Controls.Add($gridPreview)
 
-    $buttonRowY = 540
+    $buttonRowY = 590
     $buttonSpacing = 20
 
     $totalRowWidth = 180 + $buttonSpacing + 220 + $buttonSpacing + 180
@@ -179,11 +179,11 @@ function Start-AutoRename ($startState, $startBounds) {
     $btnExecute = Maak-Knop "Start hernoemen" $btnExecuteX $buttonRowY 180 40 "#3498db"; $mainPanel.Controls.Add($btnExecute)
     Style-DisabledButton $btnExecute
 
-    $progress = New-Object System.Windows.Forms.ProgressBar; $progress.Location = New-Object System.Drawing.Point(20, 600); $progress.Size = New-Object System.Drawing.Size(600, 20); $progress.Style = "Continuous"; $mainPanel.Controls.Add($progress)
-    $btnCancel = Maak-Knop "Annuleren" 640 595 140 30 "#e74c3c"; $mainPanel.Controls.Add($btnCancel)
+    $progress = New-Object System.Windows.Forms.ProgressBar; $progress.Location = New-Object System.Drawing.Point(20, 640); $progress.Size = New-Object System.Drawing.Size(600, 20); $progress.Style = "Continuous"; $mainPanel.Controls.Add($progress)
+    $btnCancel = Maak-Knop "Annuleren" 640 635 140 30 "#e74c3c"; $mainPanel.Controls.Add($btnCancel)
     Style-DisabledButton $btnCancel
 
-    $rtbLog = New-Object System.Windows.Forms.RichTextBox; $rtbLog.Location=New-Object System.Drawing.Point(20,380); $rtbLog.Size=New-Object System.Drawing.Size(760,140); $rtbLog.ReadOnly=$true; $mainPanel.Controls.Add($rtbLog)
+    $rtbLog = New-Object System.Windows.Forms.RichTextBox; $rtbLog.Location=New-Object System.Drawing.Point(20,670); $rtbLog.Size=New-Object System.Drawing.Size(760,120); $rtbLog.ReadOnly=$true; $mainPanel.Controls.Add($rtbLog)
  
     $btnLijst.Add_Click({
         $of = New-Object System.Windows.Forms.OpenFileDialog; $of.Filter = "Lijsten|*.csv;*.txt;*.xlsx|Alle|*.*"
@@ -243,6 +243,8 @@ function Start-AutoRename ($startState, $startBounds) {
             "OK" { $row.DefaultCellStyle.BackColor = [System.Drawing.ColorTranslator]::FromHtml("#d5f5e3"); $row.DefaultCellStyle.ForeColor = [System.Drawing.Color]::Black }
             "Conflict" { $row.DefaultCellStyle.BackColor = [System.Drawing.ColorTranslator]::FromHtml("#fadbd8"); $row.DefaultCellStyle.ForeColor = [System.Drawing.Color]::Black }
             "Niet gevonden" { $row.DefaultCellStyle.BackColor = [System.Drawing.ColorTranslator]::FromHtml("#fadbd8"); $row.DefaultCellStyle.ForeColor = [System.Drawing.Color]::Black }
+            "In gebruik" { $row.DefaultCellStyle.BackColor = [System.Drawing.ColorTranslator]::FromHtml("#f9e79f"); $row.DefaultCellStyle.ForeColor = [System.Drawing.Color]::Black }
+            "Fout" { $row.DefaultCellStyle.BackColor = [System.Drawing.ColorTranslator]::FromHtml("#f5b7b1"); $row.DefaultCellStyle.ForeColor = [System.Drawing.Color]::Black }
             default { $row.DefaultCellStyle.BackColor = [System.Drawing.ColorTranslator]::FromHtml("#ecf0f1"); $row.DefaultCellStyle.ForeColor = [System.Drawing.Color]::Black }
         }
     }
@@ -299,10 +301,18 @@ function Start-AutoRename ($startState, $startBounds) {
                 } elseif (Test-Path $pNieuw){
                     $row.Cells[2].Value = "Conflict"; Set-StatusStyle $row "Conflict"; Log-Kleur $rtbLog "[SKIP] $oud conflict tijdens uitvoeren" "Orange"
                 } else {
-                    Move-Item $pOud $pNieuw
-                    $row.Cells[2].Value = "Voltooid"; Set-StatusStyle $row "OK"
-                    $script:UndoLijst += @{Huidig=$pNieuw; Orig=$pOud}
-                    Log-Kleur $rtbLog "[OK] $oud -> $(Split-Path $pNieuw -Leaf)" "Green"
+                    try {
+                        Move-Item $pOud $pNieuw -ErrorAction Stop
+                        $row.Cells[2].Value = "Voltooid"; Set-StatusStyle $row "OK"
+                        $script:UndoLijst += @{Huidig=$pNieuw; Orig=$pOud}
+                        Log-Kleur $rtbLog "[OK] $oud -> $(Split-Path $pNieuw -Leaf)" "Green"
+                    } catch [System.IO.IOException] {
+                        $row.Cells[2].Value = "In gebruik"; Set-StatusStyle $row "In gebruik"
+                        Log-Kleur $rtbLog "[FOUT] Bestand in gebruik: $oud" "Red"
+                    } catch {
+                        $row.Cells[2].Value = "Fout"; Set-StatusStyle $row "Fout"
+                        Log-Kleur $rtbLog "[FOUT] $oud kon niet worden hernoemd: $($_.Exception.Message)" "Red"
+                    }
                 }
             } else {
                 $row.Cells[2].Value = "Niet gevonden"; Set-StatusStyle $row "Niet gevonden"; Log-Kleur $rtbLog "[MIS] $oud niet gevonden tijdens uitvoeren" "Red"
@@ -574,7 +584,7 @@ function Start-ManualRename {
   
         $txtD.Clear(); $txtB.Clear(); $txtT.Clear(); & $UpdatePreview  
   
-        if($f.Extension -eq ".pdf"){ $pdf.Navigate([Uri]$f.FullName); $pdf.Visible=$true } else { $img.Visible=$true; $img.ImageLocation=$f.FullName }  
+        if($f.Extension -eq ".pdf"){ $pdf.Navigate([Uri]$f.FullName); $pdf.Visible=$true; if ($img.Image) { $img.Image.Dispose() }; $img.Image = $null; $img.ImageLocation = $null } else { $img.Visible=$true; $img.ImageLocation=$f.FullName }  
         [System.Windows.Forms.Application]::DoEvents(); $formMan.ActiveControl = $null; $formMan.ActiveControl = $txtD; $txtD.Select(); $txtD.Focus()  
     }  
   
@@ -607,17 +617,29 @@ function Start-ManualRename {
         $newName = $nameInfo.Name; $target = Join-Path $f.DirectoryName $newName  
           
             if ($f.FullName -ne $target) {   
-                $pdf.Navigate("about:blank"); while($pdf.ReadyState -ne "Complete") { [System.Windows.Forms.Application]::DoEvents() }; [System.GC]::Collect(); [System.GC]::WaitForPendingFinalizers(); Start-Sleep -m 100  
+                if ($f.Extension -eq ".pdf") {  
+                    $pdf.Navigate("about:blank"); while($pdf.ReadyState -ne "Complete") { [System.Windows.Forms.Application]::DoEvents() }  
+                } else {  
+                    if ($img.Image) { $img.Image.Dispose() }  
+                    $img.Image = $null; $img.ImageLocation = $null  
+                }  
+                [System.GC]::Collect(); [System.GC]::WaitForPendingFinalizers(); Start-Sleep -m 100  
                 $maxRetries = 3; $retryCount = 0; $success = $false  
-            while (-not $success -and $retryCount -lt $maxRetries) {  
-                try { Move-Item $f.FullName $target -ErrorAction Stop; $success = $true; $script:ManFiles[$script:ManIdx] = Get-Item $target } catch { $retryCount++; Start-Sleep -m 500 }  
+                do {  
+                    while (-not $success -and $retryCount -lt $maxRetries) {  
+                        try { Move-Item $f.FullName $target -ErrorAction Stop; $success = $true; $script:ManFiles[$script:ManIdx] = Get-Item $target } catch { $retryCount++; Start-Sleep -m 500 }  
+                    }  
+                    if (-not $success) {  
+                        $msg = "Het bestand '$($f.Name)' lijkt in gebruik te zijn door een ander programma. Sluit het bestand en probeer het opnieuw."  
+                        $choice = [Windows.Forms.MessageBox]::Show($msg, "Bestand in gebruik", [System.Windows.Forms.MessageBoxButtons]::RetryCancel, [System.Windows.Forms.MessageBoxIcon]::Warning)  
+                        if ($choice -eq [System.Windows.Forms.DialogResult]::Retry) { $retryCount = 0 } else { return }  
+                    }  
+                } while (-not $success)  
+                $f = $script:ManFiles[$script:ManIdx]  
+                if ($script:ManualChanges.Count -gt $script:ManIdx) { $script:ManualChanges[$script:ManIdx] = $true }  
+                $script:HasEdited = $script:ManualChanges -contains $true  
+                & $UpdateBackButtonVisibility  
             }  
-            if (-not $success) { [Windows.Forms.MessageBox]::Show("Kan bestand niet hernoemen (in gebruik?)."); return }  
-            $f = $script:ManFiles[$script:ManIdx]  
-            if ($script:ManualChanges.Count -gt $script:ManIdx) { $script:ManualChanges[$script:ManIdx] = $true }  
-            $script:HasEdited = $script:ManualChanges -contains $true  
-            & $UpdateBackButtonVisibility  
-        }  
         Ga-VolgendeBestand  
     })  
       
