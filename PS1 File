@@ -960,6 +960,15 @@ $lblSub2.Size = New-Object System.Drawing.Size(400, 40)
 $lblSub2.Location = New-Object System.Drawing.Point(100, 395)  
 $pnlMenu.Controls.Add($lblSub2)  
   
+$lblVersion = New-Object System.Windows.Forms.Label  
+$lblVersion.Text = "Versie 1.0. Gemaakt door ChatGPT en Gemini met hulp van Nadim Abdalla"  
+$lblVersion.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Italic)  
+$lblVersion.ForeColor = [System.Drawing.Color]::FromArgb(120, 120, 120)  
+$lblVersion.TextAlign = "MiddleCenter"  
+$lblVersion.Size = New-Object System.Drawing.Size(600, 30)  
+$lblVersion.Location = New-Object System.Drawing.Point(0, 470)  
+$pnlMenu.Controls.Add($lblVersion)  
+  
 $btnAuto.Add_Click({   
     $formMain.Hide()  
     Start-AutoRename $formMain.WindowState $formMain.Bounds  
