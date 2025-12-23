@@ -29,7 +29,7 @@ PowerShell
 ```
 Install-Module -Name ps2exe -Scope CurrentUser
 Set-Location "BESTANDSPAD NAAR JE .PS1 FILE"
-Invoke-PS2EXE -InputFile ".\JOUWSCRIPT.ps1" -OutputFile ".\BulkRename.exe" -IconFile ".\JOUWICOON.ico" -noConsole
+Invoke-PS2EXE -InputFile ".\RenameTool.ps1" -OutputFile ".\BulkRename.exe" -IconFile ".\JOUWICOON.ico" -noConsole
 ```
 
 ## Toelichting Batch Renamer (lijstgestuurd)
