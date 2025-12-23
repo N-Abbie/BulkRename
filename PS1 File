@@ -613,14 +613,14 @@ Foutje gemaakt? Ga terug met de knop "Herstel vorige".\par
     # Live Preview Label  
     $pnlPreview = New-Object System.Windows.Forms.Panel;  
     $pnlPreview.Location=New-Object System.Drawing.Point(20,410);  
-    $pnlPreview.Size=New-Object System.Drawing.Size(570,60);  
+    $pnlPreview.Size=New-Object System.Drawing.Size(570,75);  
     $pnlPreview.BorderStyle="FixedSingle";  
     $pnlPreview.BackColor=[System.Drawing.ColorTranslator]::FromHtml("#f2f2f2");  
     $grpEdit.Controls.Add($pnlPreview)  
     $lblLivePreview = New-Object System.Windows.Forms.Label;   
     $lblLivePreview.Text="Preview: ...";   
     $lblLivePreview.Location=New-Object System.Drawing.Point(10,15);   
-    $lblLivePreview.Size=New-Object System.Drawing.Size(540,30);   
+    $lblLivePreview.Size=New-Object System.Drawing.Size(540,45);   
     $lblLivePreview.Font=New-Object System.Drawing.Font("Segoe UI", 11, [System.Drawing.FontStyle]::Italic)  
     $lblLivePreview.Name="lblLivePreview"  
     $pnlPreview.Controls.Add($lblLivePreview)  
