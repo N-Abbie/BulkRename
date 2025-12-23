@@ -660,8 +660,13 @@ function Start-ManualRename {
     $TryCreateDate = {  
         param([int]$year,[int]$month,[int]$day)  
         $normalizedYear = & $NormalizeYear $year  
+        if ($month -lt 0 -or $month -gt 12 -or $day -lt 0 -or $day -gt 31) { return $null }  
+        if ($month -eq 0 -or $day -eq 0) {  
+            return "{0:D2}-{1:D2}-{2:D4}" -f $day, $month, $normalizedYear  
+        }  
         try {  
-            return [datetime]::ParseExact(("{0:D4}-{1:D2}-{2:D2}" -f $normalizedYear, $month, $day), "yyyy-MM-dd", [System.Globalization.CultureInfo]::InvariantCulture)  
+            $dt = [datetime]::ParseExact(("{0:D4}-{1:D2}-{2:D2}" -f $normalizedYear, $month, $day), "yyyy-MM-dd", [System.Globalization.CultureInfo]::InvariantCulture)  
+            return $dt.ToString("dd-MM-yyyy")  
         } catch { return $null }  
     }  
   
@@ -681,8 +686,8 @@ function Start-ManualRename {
                 $monthVal = if ($m.Groups['mm'].Success) { [int]$m.Groups['mm'].Value } else { $null }  
                 $dayVal = if ($m.Groups['dd'].Success) { [int]$m.Groups['dd'].Value } else { $null }  
                 if ($null -ne $yearVal -and $null -ne $monthVal -and $null -ne $dayVal) {  
-                    $dt = & $TryCreateDate $yearVal $monthVal $dayVal  
-                    if ($dt) { return $dt.ToString("dd-MM-yyyy") }  
+                    $dateStr = & $TryCreateDate $yearVal $monthVal $dayVal  
+                    if ($dateStr) { return $dateStr }  
                 }  
             }  
         }  
