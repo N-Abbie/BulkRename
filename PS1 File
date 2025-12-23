@@ -33,6 +33,23 @@ function Get-CustomIcon {
         if ($memoryStream) { $memoryStream.Dispose() }  
     }  
 }  
+
+function Get-CustomImage {
+    if ([string]::IsNullOrWhiteSpace($script:CustomIconBase64) -or $script:CustomIconBase64 -like "*PLAK HIER BASE64*") { return $null }
+    $memoryStream = $null
+    try {
+        $bytes = [System.Convert]::FromBase64String($script:CustomIconBase64)
+        $memoryStream = New-Object System.IO.MemoryStream($bytes)
+        $img = [System.Drawing.Image]::FromStream($memoryStream)
+        $clone = $img.Clone()
+        $img.Dispose()
+        return $clone
+    } catch {
+        return $null
+    } finally {
+        if ($memoryStream) { $memoryStream.Dispose() }
+    }
+}
   
 function Set-FormIcon {  
     param($form)  
@@ -928,16 +945,17 @@ $formMain.Add_Resize({
 $formMain.Add_FormClosed({ [System.Windows.Forms.Application]::Exit() })  
   
 $logoIcon = Get-CustomIcon  
-if ($logoIcon) {  
-    $picLogo = New-Object System.Windows.Forms.PictureBox  
-    $picLogo.Size = New-Object System.Drawing.Size(96, 96)  
-    $picLogo.SizeMode = "Zoom"  
-    $picLogo.Image = $logoIcon.ToBitmap()  
-    $picLogo.BackColor = $pnlMenu.BackColor  
-    $picLogo.Location = New-Object System.Drawing.Point([int](($pnlMenu.Width - $picLogo.Width) / 2), 10)  
-    $pnlMenu.Controls.Add($picLogo)  
-    $logoIcon.Dispose()  
-}  
+$logoBitmap = if ($logoIcon) { $logoIcon.ToBitmap() } else { Get-CustomImage }
+if ($logoBitmap) {
+    $picLogo = New-Object System.Windows.Forms.PictureBox
+    $picLogo.Size = New-Object System.Drawing.Size(96, 96)
+    $picLogo.SizeMode = "Zoom"
+    $picLogo.Image = $logoBitmap
+    $picLogo.BackColor = $pnlMenu.BackColor
+    $picLogo.Location = New-Object System.Drawing.Point([int](($pnlMenu.Width - $picLogo.Width) / 2), 10)
+    $pnlMenu.Controls.Add($picLogo)
+}
+if ($logoIcon) { $logoIcon.Dispose() }
   
 $lblW = New-Object System.Windows.Forms.Label; $lblW.Text="RENAME TOOL";   
 $lblW.Font = New-Object System.Drawing.Font("Segoe UI", 32, [System.Drawing.FontStyle]::Bold)  
