@@ -116,7 +116,36 @@ function Start-AutoRename ($startState, $startBounds) {
   
     $btnHelp = Maak-Knop "?" 750 10 30 30 $script:ActiveNeutralColor; $mainPanel.Controls.Add($btnHelp)  
     $pnlInstr = New-Object System.Windows.Forms.Panel; $pnlInstr.Name="pnlInstr"; $pnlInstr.Size=New-Object System.Drawing.Size(760,480); $pnlInstr.Location=New-Object System.Drawing.Point(20,80); $pnlInstr.BackColor="#fdeb9e"; $pnlInstr.Visible=$false; $pnlInstr.BorderStyle="FixedSingle"; $mainPanel.Controls.Add($pnlInstr)  
-    $rtbI = New-Object System.Windows.Forms.RichTextBox; $rtbI.Location=New-Object System.Drawing.Point(20,50); $rtbI.Size=New-Object System.Drawing.Size(720,410); $rtbI.BackColor="#fdeb9e"; $rtbI.ForeColor="Black"; $rtbI.BorderStyle="None"; $pnlInstr.Controls.Add($rtbI)  
+    $rtbI = New-Object System.Windows.Forms.RichTextBox; $rtbI.Location=New-Object System.Drawing.Point(20,50); $rtbI.Size=New-Object System.Drawing.Size(720,410); $rtbI.BackColor="#fdeb9e"; $rtbI.ForeColor="Black"; $rtbI.BorderStyle="None"; $rtbI.ReadOnly=$true; $pnlInstr.Controls.Add($rtbI)  
+    $rtbI.Rtf = @'
+{\rtf1\ansi\deff0{\fonttbl{\f0\fnil Segoe UI;}}
+\fs22
+\b Hoe werkt de Batch Renamer?\b0\par
+Met deze tool kun je in één keer een grote groep bestanden hernoemen op basis van een lijst. Volg de onderstaande stappen:\par
+\par
+\b Stap 1: Selecteer de bestanden\b0\par
+Klik op de knop 'Kies map...' en selecteer de map waar je bestanden in staan. Vink eventueel 'Inclusief submappen' aan als je ook bestanden in onderliggende mappen wilt meenemen.\par
+\par
+\b Stap 2: Maak de namenlijst aan (bij voorkeur met AI)\b0\par
+Om de lijst met 'Oude naam' en 'Nieuwe naam' te genereren, kun je het beste een AI met tabel functie (zoals LegalMind) gebruiken.\par
+1. Upload je bestanden naar de tabel functie van de AI\par
+2. Gebruik de onderstaande prompt in de kolom om de juiste lijst te genereren:\par
+"Geef voor dit bestand de volgende informatie: Oude bestandsnaam;Nieuwe bestandsnaam\par
+Ik wil dat je zelf een nieuwe bestandsnaam bedenkt op basis van de inhoud van het document. Gebruik daarvoor het volgende template: YYYYMMDD_Bron_Titel van het document (gebruik spaties in de titel, geen liggende streepjes). Als het document al een eigen titel heeft (zoals bij nieuwsberichten) dan wil ik dat je die titel hanteert voor \"Titel\" Mocht je de publicatiemaand of -dag niet weten, dan vervang je die met 00.\par
+Bijvoorbeeld: '20251200_Volkskrant_Schade aan huizen door aardbevingen Groningen.pdf' Noteer het zo dat de oude bestandsnaam en de nieuwe bestandsnaam met elkaar gescheiden door een puntkomma (;)."\par
+\par
+\b Stap 3: Importeer de lijst\b0\par
+Kopieer de volledige uitkomst van de AI.\par
+\bullet\ Klik in deze tool op 'Plak Klembord'; OF\par
+\bullet\ Exporteer de lijst als .csv of .xlsx bestand en klik op 'Kies bestand'.\par
+\par
+\b Stap 4: Uitvoeren\b0\par
+Klik op 'Controleer'. Het programma kijkt nu of de bestanden gevonden kunnen worden.\par
+\bullet\ Groen = Klaar voor hernoemen.\par
+\bullet\ Rood/Oranje = Bestand niet gevonden of conflict.\par
+Ziet alles er goed uit? Klik dan op 'Start hernoemen'.\par
+}
+'@  
     $btnHelp.Add_Click({ $pnlInstr.Visible = -not $pnlInstr.Visible; $pnlInstr.BringToFront() })  
   
     $lblTitel = New-Object System.Windows.Forms.Label; $lblTitel.Text = "Batch Renamer"
@@ -452,7 +481,28 @@ function Start-ManualRename {
 
     $btnHelpMan = Maak-Knop "?" 610 10 30 30 $script:ActiveNeutralColor; $pnlCtrl.Controls.Add($btnHelpMan)  
     $pnlInstrMan = New-Object System.Windows.Forms.Panel; $pnlInstrMan.Name="pnlInstrMan"; $pnlInstrMan.Size=New-Object System.Drawing.Size(620,500); $pnlInstrMan.Location=New-Object System.Drawing.Point(20,50); $pnlInstrMan.BackColor="#fdeb9e"; $pnlInstrMan.Visible=$false; $pnlInstrMan.BorderStyle="FixedSingle"; $pnlCtrl.Controls.Add($pnlInstrMan)  
-    $rtbInstrMan = New-Object System.Windows.Forms.RichTextBox; $rtbInstrMan.Location=New-Object System.Drawing.Point(20,50); $rtbInstrMan.Size=New-Object System.Drawing.Size(580,430); $rtbInstrMan.BackColor="#fdeb9e"; $rtbInstrMan.ForeColor="Black"; $rtbInstrMan.BorderStyle="None"; $pnlInstrMan.Controls.Add($rtbInstrMan)  
+    $rtbInstrMan = New-Object System.Windows.Forms.RichTextBox; $rtbInstrMan.Location=New-Object System.Drawing.Point(20,50); $rtbInstrMan.Size=New-Object System.Drawing.Size(580,430); $rtbInstrMan.BackColor="#fdeb9e"; $rtbInstrMan.ForeColor="Black"; $rtbInstrMan.BorderStyle="None"; $rtbInstrMan.ReadOnly=$true; $pnlInstrMan.Controls.Add($rtbInstrMan)  
+    $rtbInstrMan.Rtf = @'
+{\rtf1\ansi\deff0{\fonttbl{\f0\fnil Segoe UI;}}
+\fs22
+\b Hoe werkt Visueel Hernoemen?\b0\par
+Met deze tool loop je één voor één door je documenten heen. Je ziet direct de inhoud van het bestand, zodat je meteen de juiste naam kunt bepalen.\par
+\par
+\b Stap 1: Startlocatie\b0\par
+Klik op 'Kies map...' om de map te openen waarin de bestanden staan die je wilt verwerken. De tool laadt automatisch het eerste bestand.\par
+\par
+\b Stap 2: Bekijk en beoordeel\b0\par
+Aan de rechterkant zie je een voorvertoning (preview) van het document. Bekijk de inhoud om te bepalen wat de datum, de bron en het onderwerp is.\par
+\par
+\b Stap 3: Naam bepalen\b0\par
+Vul aan de linkerkant de datum, de bron (auteur of instituut) en de titel van het document in. Als er een datum in de bestandsnaam staat of als de bestandsnaam al correct is, zal dit programma de betreffende velden vooraf invullen.\par
+\par
+\b Stap 4: Opslaan en doorgaan\b0\par
+Klik op de knop om de wijziging te bevestigen (bijv. 'Opslaan & Volgende'). De bestandsnaam wordt direct aangepast en het volgende document verschijnt automatisch in beeld.\par
+\par
+Foutje gemaakt? Ga terug met de knop "Herstel vorige".\par
+}
+'@  
     $btnHelpMan.Add_Click({ $pnlInstrMan.Visible = -not $pnlInstrMan.Visible; $pnlInstrMan.BringToFront() })  
   
     # -- KIES MAP SECTIE --  
