@@ -107,7 +107,7 @@ function Start-AutoRename ($startState, $startBounds) {
     $batchPrompt = @"
 Geef voor dit bestand de volgende informatie: Oude bestandsnaam;Nieuwe bestandsnaam
 Ik wil dat je zelf een nieuwe bestandsnaam bedenkt op basis van de inhoud van het document. Gebruik daarvoor het volgende template: YYYYMMDD_Bron_Titel van het document (gebruik spaties in de titel, geen liggende streepjes). Als het document al een eigen titel heeft (zoals bij nieuwsberichten) dan wil ik dat je die titel hanteert voor "Titel" Mocht je de publicatiemaand of -dag niet weten, dan vervang je die met 00.
-Bijvoorbeeld: '20251200_Volkskrant_Schade aan huizen door aardbevingen Groningen.pdf' Noteer het zo dat de oude bestandsnaam en de nieuwe bestandsnaam met elkaar gescheiden door een puntkomma (;).
+Bijvoorbeeld: '20251200_Volkskrant_Schade aan huizen door aardbevingen Groningen.pdf' Noteer de oude bestandsnaam en de nieuwe bestandsnaam gescheiden van elkaar met een puntkomma (;).
 "@.Trim()
     
     $mainPanel = New-Object System.Windows.Forms.Panel; $mainPanel.Size = New-Object System.Drawing.Size(800, 820); $formAuto.Controls.Add($mainPanel)
