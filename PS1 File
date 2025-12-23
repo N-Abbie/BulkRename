@@ -39,10 +39,10 @@ function Get-CustomIcon {
         $icon = New-Object System.Drawing.Icon($script:CustomIconStream)
         $script:CustomIconCache = [System.Drawing.Icon]$icon.Clone()
         $icon.Dispose()
-        return [System.Drawing.Icon]$script:CustomIconCache.Clone()
-    } catch {
-        return $null
-    }
+        return $iconClone
+    } catch {  
+        return $null  
+    }  
 }  
 
 function Get-CustomImage {
