@@ -104,6 +104,11 @@ function Start-AutoRename ($startState, $startBounds) {
 
     $script:GekozenMap = $null; $script:IngeplakteTekst = $null; $script:UndoLijst = @()
     $script:Annuleren = $false
+    $batchPrompt = @"
+Geef voor dit bestand de volgende informatie: Oude bestandsnaam;Nieuwe bestandsnaam
+Ik wil dat je zelf een nieuwe bestandsnaam bedenkt op basis van de inhoud van het document. Gebruik daarvoor het volgende template: YYYYMMDD_Bron_Titel van het document (gebruik spaties in de titel, geen liggende streepjes). Als het document al een eigen titel heeft (zoals bij nieuwsberichten) dan wil ik dat je die titel hanteert voor "Titel" Mocht je de publicatiemaand of -dag niet weten, dan vervang je die met 00.
+Bijvoorbeeld: '20251200_Volkskrant_Schade aan huizen door aardbevingen Groningen.pdf' Noteer het zo dat de oude bestandsnaam en de nieuwe bestandsnaam met elkaar gescheiden door een puntkomma (;).
+"@.Trim()
     
     $mainPanel = New-Object System.Windows.Forms.Panel; $mainPanel.Size = New-Object System.Drawing.Size(800, 820); $formAuto.Controls.Add($mainPanel)
     $formAuto.Add_Resize({
@@ -118,6 +123,11 @@ function Start-AutoRename ($startState, $startBounds) {
     $pnlInstr = New-Object System.Windows.Forms.Panel; $pnlInstr.Name="pnlInstr"; $pnlInstr.Size=New-Object System.Drawing.Size(760,480); $pnlInstr.Location=New-Object System.Drawing.Point(20,80); $pnlInstr.BackColor="#fdeb9e"; $pnlInstr.Visible=$false; $pnlInstr.BorderStyle="FixedSingle"; $mainPanel.Controls.Add($pnlInstr)  
     $btnInstrClose = Maak-Knop "X" 710 10 30 30 "#000632"; $pnlInstr.Controls.Add($btnInstrClose)  
     $btnInstrClose.Add_Click({ $pnlInstr.Visible = $false })  
+    $btnCopyPrompt = Maak-Knop "Kopieer prompt" 560 10 140 30 "#000632"; $pnlInstr.Controls.Add($btnCopyPrompt)
+    $btnCopyPrompt.Add_Click({
+        [System.Windows.Forms.Clipboard]::SetText($batchPrompt)
+        [System.Windows.Forms.MessageBox]::Show("Prompt gekopieerd naar het klembord.", "Gekopieerd", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information) | Out-Null
+    })
     $rtbI = New-Object System.Windows.Forms.RichTextBox; $rtbI.Location=New-Object System.Drawing.Point(20,50); $rtbI.Size=New-Object System.Drawing.Size(720,410); $rtbI.BackColor="#fdeb9e"; $rtbI.ForeColor="Black"; $rtbI.BorderStyle="None"; $rtbI.ReadOnly=$true; $pnlInstr.Controls.Add($rtbI)  
     $rtbI.Rtf = @'
 {\rtf1\ansi\deff0{\fonttbl{\f0\fnil Segoe UI;}}
