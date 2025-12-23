@@ -32,8 +32,6 @@ function Get-CustomIcon {
         return $iconClone
     } catch {  
         return $null  
-    } finally {  
-        if ($memoryStream) { $memoryStream.Dispose() }  
     }  
 }  
 
@@ -954,9 +952,10 @@ if ($logoBitmap) {
     $picLogo.Size = New-Object System.Drawing.Size(96, 96)
     $picLogo.SizeMode = "Zoom"
     $picLogo.Image = $logoBitmap
-    $picLogo.BackColor = $pnlMenu.BackColor
+    $picLogo.BackColor = "Transparent"
     $picLogo.Location = New-Object System.Drawing.Point([int](($pnlMenu.Width - $picLogo.Width) / 2), 10)
     $pnlMenu.Controls.Add($picLogo)
+    $picLogo.BringToFront()
 }
 if ($logoIcon) { $logoIcon.Dispose() }
   
