@@ -25,8 +25,11 @@ function Get-CustomIcon {
     $memoryStream = $null  
     try {  
         $bytes = [System.Convert]::FromBase64String($script:CustomIconBase64)  
-        $memoryStream = New-Object System.IO.MemoryStream($bytes)  
-        return New-Object System.Drawing.Icon($memoryStream)  
+        $memoryStream = New-Object System.IO.MemoryStream($bytes)
+        $icon = New-Object System.Drawing.Icon($memoryStream)
+        $iconClone = [System.Drawing.Icon]$icon.Clone()
+        $icon.Dispose()
+        return $iconClone
     } catch {  
         return $null  
     } finally {  
