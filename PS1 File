@@ -649,6 +649,68 @@ function Start-ManualRename {
         $btnStartJob.Visible = $false  
     }  
   
+    $NormalizeYear = {  
+        param([int]$year)  
+        if ($year -lt 100) {  
+            $year = if ($year -ge 50) { 1900 + $year } else { 2000 + $year }  
+        }  
+        return $year  
+    }  
+  
+    $TryCreateDate = {  
+        param([int]$year,[int]$month,[int]$day)  
+        $normalizedYear = & $NormalizeYear $year  
+        try {  
+            return [datetime]::ParseExact(("{0:D4}-{1:D2}-{2:D2}" -f $normalizedYear, $month, $day), "yyyy-MM-dd", [System.Globalization.CultureInfo]::InvariantCulture)  
+        } catch { return $null }  
+    }  
+  
+    $ParseDateFromText = {  
+        param([string]$text)  
+        if ([string]::IsNullOrWhiteSpace($text)) { return $null }  
+        $patterns = @(  
+            @{ Regex = '(?<!\d)(?<yyyy>\d{4})(?<mm>\d{2})(?<dd>\d{2})(?!\d)' },  
+            @{ Regex = '(?<!\d)(?<yy>\d{2})(?<mm>\d{2})(?<dd>\d{2})(?!\d)' },  
+            @{ Regex = '(?<!\d)(?<dd>\d{2})-(?<mm>\d{2})-(?<yyyy>\d{4})(?!\d)' },  
+            @{ Regex = '(?<!\d)(?<dd>\d{2})-(?<mm>\d{2})-(?<yy>\d{2})(?!\d)' }  
+        )  
+        foreach ($p in $patterns) {  
+            $m = [regex]::Match($text, $p.Regex)  
+            if ($m.Success) {  
+                $yearVal = if ($m.Groups['yyyy'].Success) { [int]$m.Groups['yyyy'].Value } elseif ($m.Groups['yy'].Success) { [int]$m.Groups['yy'].Value } else { $null }  
+                $monthVal = if ($m.Groups['mm'].Success) { [int]$m.Groups['mm'].Value } else { $null }  
+                $dayVal = if ($m.Groups['dd'].Success) { [int]$m.Groups['dd'].Value } else { $null }  
+                if ($null -ne $yearVal -and $null -ne $monthVal -and $null -ne $dayVal) {  
+                    $dt = & $TryCreateDate $yearVal $monthVal $dayVal  
+                    if ($dt) { return $dt.ToString("dd-MM-yyyy") }  
+                }  
+            }  
+        }  
+        return $null  
+    }  
+  
+    $GetPrefillFromFile = {  
+        param($file)  
+        $prefill = [PSCustomObject]@{ Date = $null; Bron = $null; Titel = $null }  
+        if (-not $file) { return $prefill }  
+  
+        $baseName = [System.IO.Path]::GetFileNameWithoutExtension($file.Name)  
+        $parts = $baseName -split "_", 3  
+        if ($parts.Count -ge 3 -and $parts[0] -match '^\d{6,8}$') {  
+            $prefill.Date = & $ParseDateFromText $parts[0]  
+            $prefill.Bron = $parts[1].Trim()  
+            $prefill.Titel = $parts[2].Trim()  
+        }  
+  
+        if (-not $prefill.Date) {  
+            $prefill.Date = & $ParseDateFromText $baseName  
+        }  
+        if (-not $prefill.Date) {  
+            $prefill.Date = & $ParseDateFromText $file.Name  
+        }  
+        return $prefill  
+    }  
+  
     # -- LIVE PREVIEW LOGICA --  
     $BuildManualName = {  
         param($file,$raw,$bronText,$titelText)  
@@ -752,7 +814,12 @@ function Start-ManualRename {
           
         if (-not (Test-Path $f.FullName)) { $lblFile.Text = "Bestand niet gevonden: $($f.Name)"; return }  
   
-        $txtD.Clear(); $txtB.Clear(); $txtT.Clear(); & $UpdatePreview  
+        $txtD.Clear(); $txtB.Clear(); $txtT.Clear()  
+        $prefill = & $GetPrefillFromFile $f  
+        if ($prefill.Date) { $txtD.Text = $prefill.Date }  
+        if ($prefill.Bron) { $txtB.Text = $prefill.Bron }  
+        if ($prefill.Titel) { $txtT.Text = $prefill.Titel }  
+        & $UpdatePreview  
   
         $ext = $f.Extension.ToLower()  
         if($ext -eq ".pdf"){   
