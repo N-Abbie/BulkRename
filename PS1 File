@@ -116,6 +116,8 @@ function Start-AutoRename ($startState, $startBounds) {
   
     $btnHelp = Maak-Knop "?" 750 10 30 30 $script:ActiveNeutralColor; $mainPanel.Controls.Add($btnHelp)  
     $pnlInstr = New-Object System.Windows.Forms.Panel; $pnlInstr.Name="pnlInstr"; $pnlInstr.Size=New-Object System.Drawing.Size(760,480); $pnlInstr.Location=New-Object System.Drawing.Point(20,80); $pnlInstr.BackColor="#fdeb9e"; $pnlInstr.Visible=$false; $pnlInstr.BorderStyle="FixedSingle"; $mainPanel.Controls.Add($pnlInstr)  
+    $btnInstrClose = Maak-Knop "X" 710 10 30 30 "#000632"; $pnlInstr.Controls.Add($btnInstrClose)  
+    $btnInstrClose.Add_Click({ $pnlInstr.Visible = $false })  
     $rtbI = New-Object System.Windows.Forms.RichTextBox; $rtbI.Location=New-Object System.Drawing.Point(20,50); $rtbI.Size=New-Object System.Drawing.Size(720,410); $rtbI.BackColor="#fdeb9e"; $rtbI.ForeColor="Black"; $rtbI.BorderStyle="None"; $rtbI.ReadOnly=$true; $pnlInstr.Controls.Add($rtbI)  
     $rtbI.Rtf = @'
 {\rtf1\ansi\deff0{\fonttbl{\f0\fnil Segoe UI;}}
@@ -130,9 +132,10 @@ Klik op de knop 'Kies map...' en selecteer de map waar je bestanden in staan. Vi
 Om de lijst met 'Oude naam' en 'Nieuwe naam' te genereren, kun je het beste een AI met tabel functie (zoals LegalMind) gebruiken.\par
 1. Upload je bestanden naar de tabel functie van de AI\par
 2. Gebruik de onderstaande prompt in de kolom om de juiste lijst te genereren:\par
-"Geef voor dit bestand de volgende informatie: Oude bestandsnaam;Nieuwe bestandsnaam\par
+\par
+\i "Geef voor dit bestand de volgende informatie: Oude bestandsnaam;Nieuwe bestandsnaam\par
 Ik wil dat je zelf een nieuwe bestandsnaam bedenkt op basis van de inhoud van het document. Gebruik daarvoor het volgende template: YYYYMMDD_Bron_Titel van het document (gebruik spaties in de titel, geen liggende streepjes). Als het document al een eigen titel heeft (zoals bij nieuwsberichten) dan wil ik dat je die titel hanteert voor \"Titel\" Mocht je de publicatiemaand of -dag niet weten, dan vervang je die met 00.\par
-Bijvoorbeeld: '20251200_Volkskrant_Schade aan huizen door aardbevingen Groningen.pdf' Noteer het zo dat de oude bestandsnaam en de nieuwe bestandsnaam met elkaar gescheiden door een puntkomma (;)."\par
+Bijvoorbeeld: '20251200_Volkskrant_Schade aan huizen door aardbevingen Groningen.pdf' Noteer het zo dat de oude bestandsnaam en de nieuwe bestandsnaam met elkaar gescheiden door een puntkomma (;)."\i0\par
 \par
 \b Stap 3: Importeer de lijst\b0\par
 Kopieer de volledige uitkomst van de AI.\par
@@ -481,6 +484,8 @@ function Start-ManualRename {
 
     $btnHelpMan = Maak-Knop "?" 610 10 30 30 $script:ActiveNeutralColor; $pnlCtrl.Controls.Add($btnHelpMan)  
     $pnlInstrMan = New-Object System.Windows.Forms.Panel; $pnlInstrMan.Name="pnlInstrMan"; $pnlInstrMan.Size=New-Object System.Drawing.Size(620,500); $pnlInstrMan.Location=New-Object System.Drawing.Point(20,50); $pnlInstrMan.BackColor="#fdeb9e"; $pnlInstrMan.Visible=$false; $pnlInstrMan.BorderStyle="FixedSingle"; $pnlCtrl.Controls.Add($pnlInstrMan)  
+    $btnInstrManClose = Maak-Knop "X" 570 10 30 30 "#000632"; $pnlInstrMan.Controls.Add($btnInstrManClose)  
+    $btnInstrManClose.Add_Click({ $pnlInstrMan.Visible = $false })  
     $rtbInstrMan = New-Object System.Windows.Forms.RichTextBox; $rtbInstrMan.Location=New-Object System.Drawing.Point(20,50); $rtbInstrMan.Size=New-Object System.Drawing.Size(580,430); $rtbInstrMan.BackColor="#fdeb9e"; $rtbInstrMan.ForeColor="Black"; $rtbInstrMan.BorderStyle="None"; $rtbInstrMan.ReadOnly=$true; $pnlInstrMan.Controls.Add($rtbInstrMan)  
     $rtbInstrMan.Rtf = @'
 {\rtf1\ansi\deff0{\fonttbl{\f0\fnil Segoe UI;}}
@@ -1019,6 +1024,11 @@ $formMain.Add_Resize({
 })  
   
 $formMain.Add_FormClosed({ [System.Windows.Forms.Application]::Exit() })  
+  
+$lblBeer = New-Object System.Windows.Forms.Label; $lblBeer.Text="Beer advocaten";  
+$lblBeer.Font = New-Object System.Drawing.Font("Segoe UI", 12, [System.Drawing.FontStyle]::Regular)  
+$lblBeer.ForeColor = [System.Drawing.ColorTranslator]::FromHtml("#000632")  
+$lblBeer.TextAlign="MiddleCenter"; $lblBeer.Size= New-Object System.Drawing.Size(600, 25); $lblBeer.Location= New-Object System.Drawing.Point(0, 95); $pnlMenu.Controls.Add($lblBeer)  
   
 $lblW = New-Object System.Windows.Forms.Label; $lblW.Text="RENAME TOOL";   
 $lblW.Font = New-Object System.Drawing.Font("Segoe UI", 32, [System.Drawing.FontStyle]::Bold)  
