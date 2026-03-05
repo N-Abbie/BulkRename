@@ -106,8 +106,18 @@ function Start-AutoRename ($startState, $startBounds) {
     $script:Annuleren = $false
     $batchPrompt = @"
 Geef voor dit bestand de volgende informatie: Oude bestandsnaam;Nieuwe bestandsnaam
-Ik wil dat je zelf een nieuwe bestandsnaam bedenkt op basis van de inhoud van het document. Gebruik daarvoor het volgende template: YYYYMMDD_Bron_Titel van het document (gebruik spaties in de titel, geen liggende streepjes). Als het document al een eigen titel heeft (zoals bij nieuwsberichten) dan wil ik dat je die titel hanteert voor "Titel" Mocht je de publicatiemaand of -dag niet weten, dan vervang je die met 00.
-Bijvoorbeeld: '20251200_Volkskrant_Schade aan huizen door aardbevingen Groningen.pdf' Noteer de oude bestandsnaam en de nieuwe bestandsnaam gescheiden van elkaar met een puntkomma (;).
+
+Ik wil dat je zelf een nieuwe bestandsnaam bedenkt op basis van de inhoud van het document. Gebruik daarvoor het volgende template: 'YYYYMMDD_Bron_Titel van het document' (gebruik spaties in de titel, geen liggende streepjes).
+Voor het datumnotatie: geef de datum van dit document. Mocht je de publicatiemaand of -dag niet weten, dan vervang je die met 00. Mocht je dus bijvoorbeeld wel de maand maar niet de dag weten dan schrijf je bijvoorbeeld 20251100 (voor november 2025). Weet je beide niet dan noteer je 20250000 (voor het jaartal 2025). 
+
+Voor de bron zoek je naar de auteur of instantie die het document heeft geschreven of daar verantwoordelijk voor is. Schrijf de bron van het bestand zoveel mogelijk afgekort. Bijvoorbeeld GGD, RIVM, NOS of KLM.
+Ministeries en ministers schrijf je altijd als 'Ministerie van [afkorting]' of 'Minister van [afkorting]'. Bijvoorbeeld 'Ministerie van I en W' of 'Minister van Fin'. Tweede Kamer en Eerste kamer schrijf je als 'Tweede Kamer' of 'Eerste Kamer'. De overheid in het algemeen schrijf je als 'Rijksoverheid'. Als je de bron van het document niet weet schrijf je 'Onbekend'. 
+
+Voor de titel: Als het document al een eigen titel heeft (zoals bij nieuwsberichten of een brief met een onderwerp) dan wil ik dat je die titel hanteert voor 'Titel'. Mocht het om een brief gaan specifieer dan wel in de titel dat het om een brief gaat. Bijvoorbeeld 'Brief verzoek om overleg'. 
+
+Voorbeeld van een nieuwe bestandsnaam : '20251200_Volkskrant_Schade aan huizen door aardbevingen Groningen.pdf' of '19990203_Ministerie van I en W_Brief van de Minister over verantwoording.pdf' Noteer de oude bestandsnaam en de nieuwe bestandsnaam gescheiden van elkaar met een puntkomma (;). Een voorbeeld van een output is: 
+
+'129_WOO-verzoek_pagina_Documenten bij het Woo-besluit 2025-17 deel 1 van de 3.pdf;20241015_Ministerie van I en W_Nachtsluiting Schiphol en impactanalyse.pdf'
 "@.Trim()
     
     $mainPanel = New-Object System.Windows.Forms.Panel; $mainPanel.Size = New-Object System.Drawing.Size(800, 820); $formAuto.Controls.Add($mainPanel)
