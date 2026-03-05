@@ -1,6 +1,7 @@
 Add-Type -AssemblyName System.Windows.Forms  
 Add-Type -AssemblyName System.Drawing  
-Add-Type -AssemblyName Microsoft.VisualBasic  
+Add-Type -AssemblyName Microsoft.VisualBasic
+Add-Type -AssemblyName WindowsBase
   
 # Zorg dat Shell COM calls in STA draaien  
 try {  
@@ -27,11 +28,119 @@ $EnsureValidFileName = {
     $invalidChars = ([System.IO.Path]::GetInvalidFileNameChars() + [System.IO.Path]::GetInvalidPathChars()) | Select-Object -Unique  
     $pattern = "[{0}]" -f [Regex]::Escape(-join $invalidChars)  
     $clean = [Regex]::Replace($clean, $pattern, "-")  
-    $clean = $clean.Trim(" .")  
-    return $clean  
-}  
-  
-# Functie om thema (Light) toe te passen  
+    $clean = $clean.Trim(" .")
+    return $clean
+}
+
+$ParseNewFileName = {
+    param([string]$fileName)
+    $result = @{ DatePart = $null; Bron = $null; Titel = $null }
+    $baseName = [System.IO.Path]::GetFileNameWithoutExtension($fileName)
+    $parts = $baseName -split "_", 3
+    if ($parts.Count -ge 1 -and $parts[0] -match '^\d{8,12}$') {
+        $result.DatePart = $parts[0]
+    }
+    if ($parts.Count -ge 2) { $result.Bron = $parts[1].Trim() }
+    if ($parts.Count -ge 3) { $result.Titel = $parts[2].Trim() }
+    return $result
+}
+
+$UpdateFileMetadata = {
+    param(
+        [string]$FilePath,
+        [string]$DatePart,
+        [string]$Bron,
+        [string]$Titel
+    )
+    if (-not $FilePath -or -not (Test-Path -LiteralPath $FilePath)) { return }
+
+    $newDate = $null
+    if ($DatePart -and $DatePart.Length -ge 8 -and $DatePart -match '^\d+$') {
+        try {
+            $yyyy = [int]$DatePart.Substring(0,4)
+            $mm = [int]$DatePart.Substring(4,2)
+            $dd = [int]$DatePart.Substring(6,2)
+            $hh = 12; $mi = 0
+            if ($DatePart.Length -ge 12) {
+                try { $hh = [int]$DatePart.Substring(8,2) } catch { $hh = 12 }
+                try { $mi = [int]$DatePart.Substring(10,2) } catch { $mi = 0 }
+            }
+            if ($mm -lt 1) { $mm = 1 }
+            if ($dd -lt 1) { $dd = 1 }
+            if ($hh -gt 23) { $hh = 12 }
+            if ($mi -gt 59) { $mi = 0 }
+            $newDate = New-Object DateTime($yyyy, $mm, $dd, $hh, $mi, 0)
+        } catch { }
+    }
+
+    # Aanmaakdatum (CreationTime)
+    if ($newDate) { try { (Get-Item -LiteralPath $FilePath).CreationTime = $newDate } catch { } }
+    # Datum (LastWriteTime)
+    if ($newDate) { try { (Get-Item -LiteralPath $FilePath).LastWriteTime = $newDate } catch { } }
+
+    # OOXML bestanden: documenteigenschappen bijwerken
+    $ext = [System.IO.Path]::GetExtension($FilePath).ToLower()
+    $ooxmlExts = @('.docx', '.xlsx', '.pptx', '.docm', '.xlsm', '.pptm')
+    if ($ooxmlExts -contains $ext) {
+        try {
+            $pkg = [System.IO.Packaging.Package]::Open($FilePath, [System.IO.FileMode]::Open, [System.IO.FileAccess]::ReadWrite)
+            try {
+                # Inhoud gemaakt (Content Created)
+                if ($newDate) { try { $pkg.PackageProperties.Created = $newDate } catch { } }
+                # Auteurs / Auteur (Creator)
+                if ($Bron) { try { $pkg.PackageProperties.Creator = $Bron } catch { } }
+                # Onderwerp (Subject)
+                if ($Titel) { try { $pkg.PackageProperties.Subject = $Titel } catch { } }
+                # Opmerkingen (Description)
+                if ($Titel) { try { $pkg.PackageProperties.Description = $Titel } catch { } }
+
+                # Bedrijf en Manager via docProps/app.xml
+                if ($Bron) {
+                    try {
+                        $appUri = New-Object Uri("/docProps/app.xml", [UriKind]::Relative)
+                        if ($pkg.PartExists($appUri)) {
+                            $appPart = $pkg.GetPart($appUri)
+                            $stream = $appPart.GetStream([System.IO.FileMode]::Open, [System.IO.FileAccess]::ReadWrite)
+                            $xml = New-Object System.Xml.XmlDocument
+                            $xml.Load($stream)
+                            $nsUri = "http://schemas.openxmlformats.org/officeDocument/2006/extended-properties"
+                            $ns = New-Object System.Xml.XmlNamespaceManager($xml.NameTable)
+                            $ns.AddNamespace("ep", $nsUri)
+                            # Bedrijf (Company)
+                            try {
+                                $node = $xml.SelectSingleNode("//ep:Company", $ns)
+                                if ($node) { $node.InnerText = $Bron }
+                                else {
+                                    $newNode = $xml.CreateElement("Company", $nsUri)
+                                    $newNode.InnerText = $Bron
+                                    $xml.DocumentElement.AppendChild($newNode) | Out-Null
+                                }
+                            } catch { }
+                            # Manager
+                            try {
+                                $node = $xml.SelectSingleNode("//ep:Manager", $ns)
+                                if ($node) { $node.InnerText = $Bron }
+                                else {
+                                    $newNode = $xml.CreateElement("Manager", $nsUri)
+                                    $newNode.InnerText = $Bron
+                                    $xml.DocumentElement.AppendChild($newNode) | Out-Null
+                                }
+                            } catch { }
+                            $stream.SetLength(0)
+                            $stream.Position = 0
+                            $xml.Save($stream)
+                            $stream.Close()
+                        }
+                    } catch { }
+                }
+            } finally {
+                $pkg.Close()
+            }
+        } catch { }
+    }
+}
+
+# Functie om thema (Light) toe te passen
 function Update-FormsTheme ($form) {  
     if ($null -eq $form) { return }  
       
@@ -178,6 +287,7 @@ Ziet alles er goed uit? Klik dan op 'Start hernoemen'.\par
     $grpStap1 = New-Object System.Windows.Forms.GroupBox; $grpStap1.Text = "Stap 1: Map"; $grpStap1.Location = New-Object System.Drawing.Point(20, 110); $grpStap1.Size = New-Object System.Drawing.Size(760, 130); $mainPanel.Controls.Add($grpStap1)
     $btnMap = Maak-Knop "Kies map..." 20 30 150 30 "#000632"; $grpStap1.Controls.Add($btnMap)
     $chkRecurse = New-Object System.Windows.Forms.CheckBox; $chkRecurse.Text = "Inclusief submappen"; $chkRecurse.Location = New-Object System.Drawing.Point(20, 70); $chkRecurse.Size = New-Object System.Drawing.Size(200, 20); $grpStap1.Controls.Add($chkRecurse)
+    $chkMeta = New-Object System.Windows.Forms.CheckBox; $chkMeta.Text = "Metadata bijwerken"; $chkMeta.Location = New-Object System.Drawing.Point(230, 70); $chkMeta.Size = New-Object System.Drawing.Size(200, 20); $grpStap1.Controls.Add($chkMeta)
     $lblMap = New-Object System.Windows.Forms.Label; $lblMap.Text = "Selecteer de map met te wijzigen documenten (of sleep map hierheen)"; $lblMap.Location = New-Object System.Drawing.Point(180, 35); $lblMap.Size = New-Object System.Drawing.Size(550, 40); $grpStap1.Controls.Add($lblMap)
     $lblCountAuto = New-Object System.Windows.Forms.Label; $lblCountAuto.Text = ""; $lblCountAuto.Location = New-Object System.Drawing.Point(20, 95); $lblCountAuto.Size = New-Object System.Drawing.Size(550, 20); $lblCountAuto.Name="lblCount"; $grpStap1.Controls.Add($lblCountAuto)
     $btnMap.Add_Click({ $fb = New-Object System.Windows.Forms.FolderBrowserDialog; if ($fb.ShowDialog() -eq "OK") { $script:GekozenMap = $fb.SelectedPath; $lblMap.Text = $script:GekozenMap; & $UpdateAutoCount } })
@@ -445,6 +555,12 @@ Ziet alles er goed uit? Klik dan op 'Start hernoemen'.\par
                         }
                         $row.Cells[2].Value = "Voltooid"; Set-StatusStyle $row "OK"
                         $script:UndoLijst += @{Huidig=$pNieuw; Orig=$pOud}
+                        if ($chkMeta.Checked) {
+                            try {
+                                $metaParts = & $ParseNewFileName $nieuw
+                                & $UpdateFileMetadata $pNieuw $metaParts.DatePart $metaParts.Bron $metaParts.Titel
+                            } catch { }
+                        }
                         Log-Kleur $rtbLog "[OK] $oud -> $(Split-Path $pNieuw -Leaf)" "Green"
                     } catch [System.IO.IOException] {
                         $row.Cells[2].Value = "In gebruik"; Set-StatusStyle $row "In gebruik"
@@ -541,9 +657,15 @@ Foutje gemaakt? Ga terug met de knop "Herstel vorige".\par
     $chkRecurse = New-Object System.Windows.Forms.CheckBox  
     $chkRecurse.Text="Inclusief submappen"   
     $chkRecurse.Location=New-Object System.Drawing.Point(20,70)  
-    $chkRecurse.Size=New-Object System.Drawing.Size(200,20)  
-    $grpSel.Controls.Add($chkRecurse)  
-      
+    $chkRecurse.Size=New-Object System.Drawing.Size(200,20)
+    $grpSel.Controls.Add($chkRecurse)
+
+    $chkMeta = New-Object System.Windows.Forms.CheckBox
+    $chkMeta.Text="Metadata bijwerken"
+    $chkMeta.Location=New-Object System.Drawing.Point(230,70)
+    $chkMeta.Size=New-Object System.Drawing.Size(200,20)
+    $grpSel.Controls.Add($chkMeta)
+
     $lblMap = New-Object System.Windows.Forms.Label; $lblMap.Text="Selecteer de map met te wijzigen documenten (of sleep map hierheen)"; $lblMap.Location=New-Object System.Drawing.Point(180,35); $lblMap.Size=New-Object System.Drawing.Size(420,40)  
     $lblMap.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Left  
     $grpSel.Controls.Add($lblMap)  
@@ -983,12 +1105,15 @@ Foutje gemaakt? Ga terug met de knop "Herstel vorige".\par
                         if ($choice -eq [System.Windows.Forms.DialogResult]::Retry) { $retryCount = 0 } else { return }  
                     }  
                 } while (-not $success)  
-                $f = $script:ManFiles[$script:ManIdx]  
-                if ($script:ManualChanges.Count -gt $script:ManIdx) { $script:ManualChanges[$script:ManIdx] = $true }  
-                $script:HasEdited = $script:ManualChanges -contains $true  
-                & $UpdateBackButtonVisibility  
-            }  
-        Ga-VolgendeBestand  
+                $f = $script:ManFiles[$script:ManIdx]
+                if ($chkMeta.Checked) {
+                    try { & $UpdateFileMetadata $target $nameInfo.DateString $nameInfo.SafeBron $nameInfo.SafeTitel } catch { }
+                }
+                if ($script:ManualChanges.Count -gt $script:ManIdx) { $script:ManualChanges[$script:ManIdx] = $true }
+                $script:HasEdited = $script:ManualChanges -contains $true
+                & $UpdateBackButtonVisibility
+            }
+        Ga-VolgendeBestand
     })  
       
     $btnSkip.Add_Click({  
