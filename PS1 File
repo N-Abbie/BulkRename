@@ -426,6 +426,50 @@ Ziet alles er goed uit? Klik dan op 'Start hernoemen'.\par
 
     $btnCancel.Add_Click({ $script:Annuleren = $true })
 
+    $normalizePathForBatch = {
+        param([string]$pad)
+        if ([string]::IsNullOrWhiteSpace($pad)) { return $null }
+        try { return [System.IO.Path]::GetFullPath($pad) } catch { return $null }
+    }
+
+    $isSubPath = {
+        param([string]$basePath,[string]$candidatePath)
+        if (-not $basePath -or -not $candidatePath) { return $false }
+        $comparison = [System.StringComparison]::OrdinalIgnoreCase
+        $baseNorm = $basePath.TrimEnd('\\','/')
+        $candNorm = $candidatePath.TrimEnd('\\','/')
+        return $candNorm.Equals($baseNorm, $comparison) -or $candNorm.StartsWith($baseNorm + [System.IO.Path]::DirectorySeparatorChar, $comparison)
+    }
+
+    $resolveBatchPaths = {
+        param([string]$baseMap,[string]$oldRelative,[string]$newName)
+
+        $result = [PSCustomObject]@{ Valid = $false; OldPath = $null; NewPath = $null; Reason = $null }
+        $baseFull = &$normalizePathForBatch $baseMap
+        if (-not $baseFull) { $result.Reason = 'Basismap is ongeldig.'; return $result }
+
+        $oldClean = if ($oldRelative) { $oldRelative.Trim() } else { '' }
+        $newClean = & $EnsureValidFileName $newName
+        if (-not $oldClean -or -not $newClean) { $result.Reason = 'Oude of nieuwe naam ontbreekt.'; return $result }
+        if ([System.IO.Path]::IsPathRooted($oldClean)) { $result.Reason = 'Absolute paden zijn niet toegestaan.'; return $result }
+
+        $oldPath = &$normalizePathForBatch (Join-Path $baseFull $oldClean)
+        if (-not $oldPath -or -not (&$isSubPath $baseFull $oldPath)) { $result.Reason = 'Oude naam valt buiten de gekozen map.'; return $result }
+
+        $relativeDir = [System.IO.Path]::GetDirectoryName($oldClean)
+        $targetDir = if ($relativeDir) { Join-Path $baseFull $relativeDir } else { $baseFull }
+        $targetDir = &$normalizePathForBatch $targetDir
+        if (-not $targetDir -or -not (&$isSubPath $baseFull $targetDir)) { $result.Reason = 'Doelmap valt buiten de gekozen map.'; return $result }
+
+        $newPath = &$normalizePathForBatch (Join-Path $targetDir $newClean)
+        if (-not $newPath -or -not (&$isSubPath $baseFull $newPath)) { $result.Reason = 'Nieuwe naam bevat ongeldige tekens of mapstructuur.'; return $result }
+
+        $result.Valid = $true
+        $result.OldPath = $oldPath
+        $result.NewPath = $newPath
+        return $result
+    }
+
     $btnStart.Add_Click({
         if(-not $script:GekozenMap){ [Windows.Forms.MessageBox]::Show("Kies map!"); return }
         if(-not $script:IngeplakteTekst){ [Windows.Forms.MessageBox]::Show("Geen lijst geladen!"); return }
@@ -440,21 +484,16 @@ Ziet alles er goed uit? Klik dan op 'Start hernoemen'.\par
             if($script:Annuleren){ Log-Kleur $rtbLog "Controle geannuleerd." "Orange"; break }
             $oudNaam = if($r.Oud){ $r.Oud.Trim() } else { "" }
             $nieuwNaam = & $EnsureValidFileName $r.Nieuw
-            $pOud = Join-Path $script:GekozenMap $oudNaam; $pNieuw = Join-Path $script:GekozenMap $nieuwNaam
+            $resolvedPaths = &$resolveBatchPaths $script:GekozenMap $oudNaam $nieuwNaam
             $status = ""
-            $padOngeldig = $false
-            try { $null = [System.IO.Path]::GetFullPath($pOud) } catch { $padOngeldig = $true }
-            if (-not $padOngeldig) {
-                try { $null = [System.IO.Path]::GetFullPath($pNieuw) } catch { $padOngeldig = $true }
-            }
-            if ($padOngeldig -or -not $nieuwNaam) {
-                $status = "Fout"; Log-Kleur $rtbLog "[FOUT] Ongeldige padtekens voor $($r.Oud)" "Red"
-            } elseif(Test-Path $pOud){
-                if ($pOud -ceq $pNieuw) {
+            if (-not $resolvedPaths.Valid) {
+                $status = "Fout"; Log-Kleur $rtbLog "[FOUT] Ongeldig pad voor $($r.Oud): $($resolvedPaths.Reason)" "Red"
+            } elseif(Test-Path -LiteralPath $resolvedPaths.OldPath){
+                if ($resolvedPaths.OldPath -ceq $resolvedPaths.NewPath) {
                     $status = "Ongewijzigd"; Log-Kleur $rtbLog "[SKIP] $($r.Oud) ongewijzigd" "Gray"
-                } elseif ($pOud -eq $pNieuw) {
+                } elseif ($resolvedPaths.OldPath -eq $resolvedPaths.NewPath) {
                     $status = "OK"; Log-Kleur $rtbLog "[OK] $($r.Oud) alleen hoofdletterwijziging" "Green"
-                } elseif (Test-Path $pNieuw) {
+                } elseif (Test-Path -LiteralPath $resolvedPaths.NewPath) {
                     $status = "Conflict"; Log-Kleur $rtbLog "[SKIP] $($r.Oud) conflict: $nieuwNaam bestaat al" "Orange"
                 } else {
                     $status = "OK"; Log-Kleur $rtbLog "[OK] $($r.Oud) klaar voor hernoemen" "Green"
@@ -521,16 +560,13 @@ Ziet alles er goed uit? Klik dan op 'Start hernoemen'.\par
                 if($oudExt){ $nieuw = "$nieuw$oudExt" }
             }
             $row.Cells[1].Value = $nieuw
-            $pOud = Join-Path $script:GekozenMap $oud; $pNieuw = Join-Path $script:GekozenMap $nieuw
+            $resolvedPaths = &$resolveBatchPaths $script:GekozenMap $oud $nieuw
+            if (-not $resolvedPaths.Valid) {
+                $row.Cells[2].Value = "Fout"; Set-StatusStyle $row "Fout"; Log-Kleur $rtbLog "[FOUT] Ongeldig pad voor $oud: $($resolvedPaths.Reason)" "Red"
+                continue
+            }
+            $pOud = $resolvedPaths.OldPath; $pNieuw = $resolvedPaths.NewPath
             $pOudFull = &$normalizePath $pOud; $pNieuwFull = &$normalizePath $pNieuw
-            if (-not $pOudFull) {
-                $row.Cells[2].Value = "Fout"; Set-StatusStyle $row "Fout"; Log-Kleur $rtbLog "[FOUT] Ongeldig bronpad: $oud" "Red"
-                continue
-            }
-            if (-not $pNieuwFull) {
-                $row.Cells[2].Value = "Fout"; Set-StatusStyle $row "Fout"; Log-Kleur $rtbLog "[FOUT] Doelpad bevat ongeldige tekens voor $oud" "Red"
-                continue
-            }
             $len = $pNieuwFull.Length
             if((&$pathExists $pOud)){
                 $isCaseOnlyChange = ($pOud -ieq $pNieuw) -and -not ($pOud -ceq $pNieuw)
