@@ -479,12 +479,23 @@ Ziet alles er goed uit? Klik dan op 'Start hernoemen'.\par
         $items = @()
         foreach($r in $lijst){ if($r.Oud -and $r.Oud -ne "Oud"){ $items += $r } }
         if($items.Count -eq 0){ [Windows.Forms.MessageBox]::Show("Geen geldige regels gevonden."); Style-EnabledButton $btnStart "#004941"; $btnStart.Text = "Controleer"; Style-DisabledButton $btnCancel; return }
-        $progress.Minimum = 0; $progress.Maximum = $items.Count; $progress.Value = 0
+        $resolvedByItem = @()
         foreach($r in $items){
-            if($script:Annuleren){ Log-Kleur $rtbLog "Controle geannuleerd." "Orange"; break }
             $oudNaam = if($r.Oud){ $r.Oud.Trim() } else { "" }
             $nieuwNaam = & $EnsureValidFileName $r.Nieuw
             $resolvedPaths = &$resolveBatchPaths $script:GekozenMap $oudNaam $nieuwNaam
+            $resolvedByItem += [PSCustomObject]@{ Item = $r; OudNaam = $oudNaam; NieuwNaam = $nieuwNaam; Resolved = $resolvedPaths }
+        }
+        $allOldPaths = New-Object 'System.Collections.Generic.HashSet[string]' ([System.StringComparer]::OrdinalIgnoreCase)
+        foreach($entry in $resolvedByItem){ if($entry.Resolved.Valid){ [void]$allOldPaths.Add($entry.Resolved.OldPath) } }
+
+        $progress.Minimum = 0; $progress.Maximum = $items.Count; $progress.Value = 0
+        foreach($entry in $resolvedByItem){
+            if($script:Annuleren){ Log-Kleur $rtbLog "Controle geannuleerd." "Orange"; break }
+            $r = $entry.Item
+            $oudNaam = $entry.OudNaam
+            $nieuwNaam = $entry.NieuwNaam
+            $resolvedPaths = $entry.Resolved
             $status = ""
             if (-not $resolvedPaths.Valid) {
                 $status = "Fout"; Log-Kleur $rtbLog "[FOUT] Ongeldig pad voor $($r.Oud): $($resolvedPaths.Reason)" "Red"
@@ -494,7 +505,11 @@ Ziet alles er goed uit? Klik dan op 'Start hernoemen'.\par
                 } elseif ($resolvedPaths.OldPath -eq $resolvedPaths.NewPath) {
                     $status = "OK"; Log-Kleur $rtbLog "[OK] $($r.Oud) alleen hoofdletterwijziging" "Green"
                 } elseif (Test-Path -LiteralPath $resolvedPaths.NewPath) {
-                    $status = "Conflict"; Log-Kleur $rtbLog "[SKIP] $($r.Oud) conflict: $nieuwNaam bestaat al" "Orange"
+                    if ($allOldPaths.Contains($resolvedPaths.NewPath)) {
+                        $status = "OK"; Log-Kleur $rtbLog "[OK] $($r.Oud) interne wissel/keten herkend" "Green"
+                    } else {
+                        $status = "Conflict"; Log-Kleur $rtbLog "[SKIP] $($r.Oud) conflict: $nieuwNaam bestaat al" "Orange"
+                    }
                 } else {
                     $status = "OK"; Log-Kleur $rtbLog "[OK] $($r.Oud) klaar voor hernoemen" "Green"
                 }
@@ -551,16 +566,24 @@ Ziet alles er goed uit? Klik dan op 'Start hernoemen'.\par
 
         $script:Annuleren = $false; Style-EnabledButton $btnCancel "#e74c3c"; Style-DisabledButton $btnExecute; Style-DisabledButton $btnStart
         $progress.Minimum = 0; $progress.Maximum = $okRows.Count; $progress.Value = 0
+        $allSources = New-Object 'System.Collections.Generic.HashSet[string]' ([System.StringComparer]::OrdinalIgnoreCase)
+        $ops = @()
         foreach($row in $okRows){
-            if($script:Annuleren){ Log-Kleur $rtbLog "Uitvoering geannuleerd." "Orange"; break }
             $oud = $row.Cells[0].Value; $nieuw = $row.Cells[1].Value
             $nieuw = & $EnsureValidFileName $nieuw
             if(-not [System.IO.Path]::HasExtension($nieuw)){
                 $oudExt = [System.IO.Path]::GetExtension($oud)
                 if($oudExt){ $nieuw = "$nieuw$oudExt" }
             }
-            $row.Cells[1].Value = $nieuw
             $resolvedPaths = &$resolveBatchPaths $script:GekozenMap $oud $nieuw
+            if ($resolvedPaths.Valid) { [void]$allSources.Add($resolvedPaths.OldPath) }
+            $ops += [PSCustomObject]@{ Row=$row; Oud=$oud; Nieuw=$nieuw; Paths=$resolvedPaths; Temp=$null; Ready=$false }
+        }
+
+        foreach($op in $ops){
+            if($script:Annuleren){ Log-Kleur $rtbLog "Uitvoering geannuleerd." "Orange"; break }
+            $row = $op.Row; $oud = $op.Oud; $nieuw = $op.Nieuw; $resolvedPaths = $op.Paths
+            $row.Cells[1].Value = $nieuw
             if (-not $resolvedPaths.Valid) {
                 $row.Cells[2].Value = "Fout"; Set-StatusStyle $row "Fout"; Log-Kleur $rtbLog "[FOUT] Ongeldig pad voor $oud: $($resolvedPaths.Reason)" "Red"
                 continue
@@ -572,39 +595,22 @@ Ziet alles er goed uit? Klik dan op 'Start hernoemen'.\par
                 $isCaseOnlyChange = ($pOud -ieq $pNieuw) -and -not ($pOud -ceq $pNieuw)
                 if ($len -gt 32000) {
                     $row.Cells[2].Value = "Te lang"; Set-StatusStyle $row "Te lang"; Log-Kleur $rtbLog "[FOUT] Pad te lang ($len tekens): $oud" "Red"
-                } elseif ((&$pathExists $pNieuw) -and (-not $isCaseOnlyChange)){
+                } elseif ((&$pathExists $pNieuw) -and (-not $isCaseOnlyChange) -and (-not $allSources.Contains($pNieuw))){
                     $row.Cells[2].Value = "Conflict"; Set-StatusStyle $row "Conflict"; Log-Kleur $rtbLog "[SKIP] $oud conflict tijdens uitvoeren" "Orange"
                 } else {
-                    $pTemp = $null
                     try {
-                        if($isCaseOnlyChange){
-                            $tempBase = [System.IO.Path]::GetFileNameWithoutExtension($oud)
-                            $tempExt = [System.IO.Path]::GetExtension($oud)
-                            do {
-                                $tempName = "{0}_TEMP_{1}{2}" -f $tempBase, (Get-Random -Minimum 1000 -Maximum 9999), $tempExt
-                                $pTemp = Join-Path $script:GekozenMap $tempName
-                            } while (&$pathExists $pTemp)
-                            &$movePath $pOud $pTemp
-                            &$movePath $pTemp $pNieuw
-                        } else {
-                            &$movePath $pOud $pNieuw
-                        }
-                        $row.Cells[2].Value = "Voltooid"; Set-StatusStyle $row "OK"
-                        $script:UndoLijst += @{Huidig=$pNieuw; Orig=$pOud}
-                        if ($chkMeta.Checked) {
-                            try {
-                                $metaParts = & $ParseNewFileName $nieuw
-                                & $UpdateFileMetadata $pNieuw $metaParts.DatePart $metaParts.Bron $metaParts.Titel
-                            } catch { }
-                        }
-                        Log-Kleur $rtbLog "[OK] $oud -> $(Split-Path $pNieuw -Leaf)" "Green"
+                        $tempBase = [System.IO.Path]::GetFileNameWithoutExtension($oud)
+                        $tempExt = [System.IO.Path]::GetExtension($oud)
+                        do {
+                            $tempName = "{0}_TEMP_{1}{2}" -f $tempBase, ([Guid]::NewGuid().ToString('N').Substring(0,8)), $tempExt
+                            $op.Temp = Join-Path ([System.IO.Path]::GetDirectoryName($pOud)) $tempName
+                        } while (&$pathExists $op.Temp)
+                        &$movePath $pOud $op.Temp
+                        $op.Ready = $true
                     } catch [System.IO.IOException] {
                         $row.Cells[2].Value = "In gebruik"; Set-StatusStyle $row "In gebruik"
                         Log-Kleur $rtbLog "[FOUT] Bestand in gebruik: $oud" "Orange"
                     } catch {
-                        if($pTemp -and (&$pathExists $pTemp) -and -not (&$pathExists $pOud)){
-                            try { &$movePath $pTemp $pOud } catch { }
-                        }
                         $row.Cells[2].Value = "Fout"; Set-StatusStyle $row "Fout"
                         Log-Kleur $rtbLog "[FOUT] $oud kon niet worden hernoemd: $($_.Exception.Message)" "Red"
                     }
@@ -614,6 +620,31 @@ Ziet alles er goed uit? Klik dan op 'Start hernoemen'.\par
             }
             $progress.Value = [Math]::Min($progress.Maximum, $progress.Value + 1)
             [System.Windows.Forms.Application]::DoEvents()
+        }
+
+        foreach($op in ($ops | Where-Object { $_.Ready -and $_.Temp })) {
+            if($script:Annuleren){ Log-Kleur $rtbLog "Uitvoering geannuleerd." "Orange"; break }
+            $row = $op.Row; $pOud = $op.Paths.OldPath; $pNieuw = $op.Paths.NewPath; $nieuw = $op.Nieuw
+            try {
+                &$movePath $op.Temp $pNieuw
+                $row.Cells[2].Value = "Voltooid"; Set-StatusStyle $row "OK"
+                $script:UndoLijst += @{Huidig=$pNieuw; Orig=$pOud}
+                if ($chkMeta.Checked) {
+                    try {
+                        $metaParts = & $ParseNewFileName $nieuw
+                        & $UpdateFileMetadata $pNieuw $metaParts.DatePart $metaParts.Bron $metaParts.Titel
+                    } catch { }
+                }
+                Log-Kleur $rtbLog "[OK] $($op.Oud) -> $(Split-Path $pNieuw -Leaf)" "Green"
+            } catch [System.IO.IOException] {
+                try { if (&$pathExists $op.Temp) { &$movePath $op.Temp $pOud } } catch { }
+                $row.Cells[2].Value = "In gebruik"; Set-StatusStyle $row "In gebruik"
+                Log-Kleur $rtbLog "[FOUT] Bestand in gebruik tijdens afronden: $($op.Oud)" "Orange"
+            } catch {
+                try { if (&$pathExists $op.Temp) { &$movePath $op.Temp $pOud } } catch { }
+                $row.Cells[2].Value = "Fout"; Set-StatusStyle $row "Fout"
+                Log-Kleur $rtbLog "[FOUT] $($op.Oud) kon niet worden afgerond: $($_.Exception.Message)" "Red"
+            }
         }
         Style-DisabledButton $btnCancel; Style-EnabledButton $btnExecute "#003161"; Style-EnabledButton $btnStart "#004941"
         $progress.Value = 0
